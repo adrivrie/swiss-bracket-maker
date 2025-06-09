@@ -56,6 +56,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Get the table row index
         rowPosition = self.ui.playersTableWidget.rowCount()
         self.ui.playersTableWidget.insertRow(rowPosition)
+        self.ui.playersTableWidget.setSortingEnabled(True)
 
         # Create a centered checkbox cell
         checkbox = QCheckBox()
