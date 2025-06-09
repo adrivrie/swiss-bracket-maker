@@ -13,6 +13,9 @@ class Player():
     def __str__(self):
         return f"{self.name}: {self.score}"
 
+    def __repr__(self):
+        return f"{self.name}"
+
 
 class Matchup():
     def __init__(self, player1: Player, player2: Player, notes: str = ""):
@@ -26,10 +29,12 @@ class Matchup():
         
     def __str__(self):
         return f"{self.player1.name} vs {self.player2.name}"
+    
+    def __repr__(self):
+        return f"{self.player1.name} vs {self.player2.name}"
 
 
 class Round():
     def __init__(self, matchups: list[Matchup]):
         self.matchups = matchups
         self.locked = False
-

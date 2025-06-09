@@ -67,8 +67,11 @@ class Ui_MainWindow(object):
         self.settingsGridLayout.addWidget(self.importPlayersClipboardButton, 1, 1, 1, 1)
 
         self.settingsMessage = QLabel(self.settings)
-        self.settingsMessage.setObjectName(u"settingsMessage")
-        self.settingsMessage.setGeometry(QRect(470, 70, 191, 21))
+        self.settingsMessage.setObjectName("settingsMessage")
+        self.settingsMessage.setWordWrap(True)
+        self.settingsMessage.setGeometry(QRect(470, 70, 300, 60))
+        self.settingsMessage.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
         self.tabWidget.addTab(self.settings, "")
         self.players = QWidget()
         self.players.setObjectName(u"players")
