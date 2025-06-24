@@ -35,22 +35,40 @@ class MainWindow(QtWidgets.QMainWindow):
         filename, _ = QFileDialog.getOpenFileName()
         if not filename:
             return
+        count = 0
+
+        current_player_names = {player.name.strip().lower() for player in self.players}
         with open(filename, 'r') as f:
             for name in f:
-                new_player = Player(name.strip())
+                name = name.strip()
+                if not name or name.lower() in current_player_names:
+                    print(f"Duplicate name {name}")
+                    continue
+                new_player = Player(name)
                 self.players.append(new_player)
                 self.create_player_table_entry(new_player)
-        self.ui.settingsMessage.setText(f"Imported {len(self.players)} players successfully")
+                count += 1
+                current_player_names.add(name.lower())
+        self.ui.settingsMessage.setText(f"Imported {count} players successfully")
 
 
     def import_players_from_clipboard(self):
         data = get_clipboard_data()
         names = data.split('\n')
+        count = 0
+
+        current_player_names = {player.name.strip().lower() for player in self.players}
         for name in names:
-            new_player = Player(name.strip())
+            name = name.strip()
+            if not name or name.lower() in current_player_names:
+                    print(f"Duplicate name {name}")
+                    continue
+            new_player = Player(name)
             self.players.append(new_player)
             self.create_player_table_entry(new_player)
-        self.ui.settingsMessage.setText(f"Imported {len(self.players)} players successfully")
+            count += 1
+            current_player_names.add(name.lower())
+        self.ui.settingsMessage.setText(f"Imported {count} players successfully")
 
 
     def create_player_table_entry(self, player: Player):
