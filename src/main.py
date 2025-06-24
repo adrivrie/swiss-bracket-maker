@@ -32,8 +32,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def import_players_from_file(self):
-        filename,  _ = QFileDialog.getOpenFileName()       
-
+        filename,  _ = QFileDialog.getOpenFileName()
         with open(filename, 'r') as f:
             for name in f:
                 new_player = Player(name.strip())
@@ -94,7 +93,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.settingsMessage.setText("Previous round is not locked.")
             return
 
-        # Create the table for the new round     
+        # Create the table for the new round
         table = QTableWidget()
         table.setColumnCount(6)
         table.setHorizontalHeaderLabels(["P1", "P2", "Winner", "Notes", "P1Score", "P2Score"])
@@ -116,11 +115,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 p2 = Player("-")
                 winner = p1
                 matchup.score_player1 = 1.0
-            
+
 
             table.setItem(idx, 0, QTableWidgetItem(str(p1.name)))
             table.setItem(idx, 1, QTableWidgetItem(str(p2.name)))
-            
+
             combo = QComboBox()
             combo.setEditable(True)
             combo.lineEdit().setReadOnly(True)
@@ -151,7 +150,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         button_row = QHBoxLayout()
         button_row.setSpacing(10)
-        
+
         lock_button = QPushButton("Lock Round")
         lock_button.clicked.connect(lambda _, t=table, r=new_round: self.lock_round(t, r))
         button_row.addWidget(lock_button)
@@ -320,11 +319,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     item = table.item(row, col)
                     if item is not None:
                         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            
+
                 widget = table.cellWidget(row, 2)
                 if isinstance(widget, QComboBox):
                     widget.setEnabled(False)
-                    
+
             # Lock the round
             round.locked = True
 
@@ -337,7 +336,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.update_player_table()
 
             print("Round locked! Editing disabled.")
-    
+
 
     def update_player_table(self):
         row_count = self.ui.playersTableWidget.rowCount()

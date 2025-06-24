@@ -26,10 +26,10 @@ class Matchup():
         self.score_player2 = 0.
         self.notes = notes
 
-        
+
     def __str__(self):
         return f"{self.player1.name} vs {self.player2.name}"
-    
+
     def __repr__(self):
         return f"{self.player1.name} vs {self.player2.name}"
 
