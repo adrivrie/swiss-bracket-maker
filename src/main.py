@@ -32,7 +32,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def import_players_from_file(self):
-        filename,  _ = QFileDialog.getOpenFileName()
+        filename, _ = QFileDialog.getOpenFileName()
         if not filename:
             return
         with open(filename, 'r') as f:
