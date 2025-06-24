@@ -39,7 +39,7 @@ def generate_matchups(players: list[Player]) -> list[Matchup]:
         lucky_player = get_player_by_name(players, lucky_player.name)
         new_matchup = Matchup(lucky_player, None, "BYE")
         matchups.append(new_matchup)
-    
+
     return matchups
 
 
@@ -85,7 +85,7 @@ def create_bracket(participants) -> list[Matchup]:
             round_match_seeds.append([home, away])
 
         match_seeds = round_match_seeds
-    
+
     matches = []
     print(match_seeds)
     for match in match_seeds:
@@ -114,4 +114,3 @@ def build_full_bracket_from_first_round(first_round: list[Matchup]) -> list[list
         bracket.append(next_round)
 
     return bracket
-
