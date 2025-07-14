@@ -476,7 +476,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 if len(selected_players) < 2:
                     QMessageBox.warning(self, "Invalid Input", "Not enough players have a high enough score.")
                     return
-                # TODO: Sort by score then by resistance
                 sorted_players = sorted(selected_players, key=lambda p: (p.score, p.resistance), reverse=True)
                 round1_matches = create_bracket(sorted_players)
                 # TODO: Future work. Create full interactive bracket page
