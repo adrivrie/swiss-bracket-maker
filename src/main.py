@@ -29,6 +29,34 @@ class MainWindow(QtWidgets.QMainWindow):
         # set column headers in players table
         self.ui.playersTableWidget.setColumnCount(4)
         self.ui.playersTableWidget.setHorizontalHeaderLabels(["Drop", "Name", "Score", "Resistance"])
+        self.ui.playersTableWidget.cellChanged.connect(self.on_player_cell_changed)
+
+    def on_player_cell_changed(self, row, column):
+        if column == 0:
+            # The checkbox is a widget, so it won’t trigger this.
+            return
+
+        # Get Player object from Name column
+        player_item = self.ui.playersTableWidget.item(row, 1).text()
+        if player_item is None:
+            return
+
+        player = [x for x in self.players if x.name == player_item][0]
+        if not player:
+            return
+
+        if column == 2:
+            try:
+                print(f"Updated {player.name}: Score from {player.score} to {float(self.ui.playersTableWidget.item(row, column).text())}")
+                player.score = float(self.ui.playersTableWidget.item(row, column).text())
+            except ValueError:
+                player.score = 0.0
+        elif column == 3:
+            try:
+                print(f"Updated {player.name}: Resistance from {player.resistance} to {float(self.ui.playersTableWidget.item(row, column).text())}")
+                player.resistance = float(self.ui.playersTableWidget.item(row, column).text())
+            except ValueError:
+                player.resistance = 0.0
 
 
     def import_players_from_file(self):
@@ -433,7 +461,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 if num > len(self.players):
                     QMessageBox.warning(self, "Invalid Input", "More players selected than are listed.")
                     return
-                sorted_players = sorted(self.players, key=lambda p: p.score, reverse=True)
+                sorted_players = sorted(self.players, key=lambda p: (p.score, p.resistance), reverse=True)
+                print(sorted_players)
                 selected_players = sorted_players[:num]
                 if len(selected_players) == 0:
                     raise ValueError()
