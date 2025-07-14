@@ -27,15 +27,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.generateBracket.clicked.connect(self.on_generate_final_bracket_clicked)
 
         # set column headers in players table
-        self.ui.playersTableWidget.setColumnCount(4)
-        self.ui.playersTableWidget.setHorizontalHeaderLabels(["Drop", "Name", "Score", "Resistance"])
+        self.ui.playersTableWidget.setColumnCount(5)
+        self.ui.playersTableWidget.setHorizontalHeaderLabels(["Drop", "Name", "Score", "Resistance", "Win Percentage"])
         self.ui.playersTableWidget.cellChanged.connect(self.on_player_cell_changed)
 
     def on_player_cell_changed(self, row, column):
-        if column == 0:
-            # The checkbox is a widget, so it won’t trigger this.
-            return
-
         # Get Player object from Name column
         player_item = self.ui.playersTableWidget.item(row, 1).text()
         if player_item is None:
@@ -121,6 +117,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.playersTableWidget.setItem(rowPosition, 1, QTableWidgetItem(player.name))
         self.ui.playersTableWidget.setItem(rowPosition, 2, QTableWidgetItem(str(player.score)))
         self.ui.playersTableWidget.setItem(rowPosition, 3, QTableWidgetItem(str(player.resistance)))
+        self.ui.playersTableWidget.setItem(rowPosition, 4, QTableWidgetItem(str(player.winpercentage) + "%"))
 
 
     def on_checkbox_state_changed(self, state: int, player: Player):
@@ -380,8 +377,43 @@ class MainWindow(QtWidgets.QMainWindow):
                 matchup.player1.score += matchup.score_player1
                 if matchup.player2:
                     matchup.player2.score += matchup.score_player2
+            
+            # TODO: Can probably be a lot better
+            # Update the win percentrage for every player
+            for player in self.players:
+                total_wins = 0
+                played_rounds = 0
+                for played_round in self.rounds:
+                    for match in played_round.matchups:
+                        # Find the player's match
+                        if player == match.player1 or player == match.player2:
+                            played_rounds += 1
+                            if match.winner == player:
+                                total_wins += 1
+                player.winpercentage = total_wins / played_rounds * 100
 
-            # TODO: Now update the resistance for every player with the new scores
+            # Update resistance
+            for player in self.players:
+                owps = []
+                print(player)
+                for played_round in self.rounds:
+                    for match in played_round.matchups:
+                        print(match)
+                        # Find the player's match
+                        if player == match.player1 or player == match.player2:
+                            opponent = match.player1 if match.player1 != player else match.player2
+                            if opponent:
+                                owps.append(max(opponent.winpercentage, 25))
+                            else:
+                                # This was BYE round so ignore it
+                                pass
+                            break
+
+                if owps:
+                    player.resistance = sum(owps) / len(owps)
+                else:
+                    # no matches found so first round was a BYE
+                    player.resistance = 0.25
 
             self.update_player_table()
 
@@ -392,11 +424,13 @@ class MainWindow(QtWidgets.QMainWindow):
         row_count = self.ui.playersTableWidget.rowCount()
 
         for row in range(row_count):
-            # update score, resistance and matches
+            # update score, resistance, winpercentage and matches
             name = self.ui.playersTableWidget.item(row, 1).text()
             player = get_player_by_name(self.players, name)
             print(player)
             self.ui.playersTableWidget.setItem(row, 2, QTableWidgetItem(f"{player.score}"))
+            self.ui.playersTableWidget.setItem(row, 3, QTableWidgetItem(f"{player.resistance}"))
+            self.ui.playersTableWidget.setItem(row, 4, QTableWidgetItem(f"{player.winpercentage}"))
 
 
     def on_generate_final_bracket_clicked(self):

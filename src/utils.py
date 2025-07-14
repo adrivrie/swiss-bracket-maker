@@ -102,15 +102,16 @@ def change_into_bye(seed, participants_count):
     return seed if seed <= participants_count else None
 
 
-def build_full_bracket_from_first_round(first_round: list[Matchup]) -> list[list[Matchup]]:
-    bracket = [first_round]
-    total_players = len(first_round) * 2
-    total_rounds = int(math.log2(total_players))
+# TODO: Future work. Create full interactive bracket page
+# def build_full_bracket_from_first_round(first_round: list[Matchup]) -> list[list[Matchup]]:
+#     bracket = [first_round]
+#     total_players = len(first_round) * 2
+#     total_rounds = int(math.log2(total_players))
 
-    # Build future rounds with empty matches
-    for r in range(1, total_rounds):
-        matches_in_round = len(bracket[r - 1]) // 2
-        next_round = [Matchup(Player(""), Player("")) for _ in range(matches_in_round)]
-        bracket.append(next_round)
+#     # Build future rounds with empty matches
+#     for r in range(1, total_rounds):
+#         matches_in_round = len(bracket[r - 1]) // 2
+#         next_round = [Matchup(Player(""), Player("")) for _ in range(matches_in_round)]
+#         bracket.append(next_round)
 
-    return bracket
+#     return bracket

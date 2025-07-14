@@ -4,10 +4,11 @@ class Player():
     def __init__(self, name: str):
         self.name = name
         self.clean_name = re.sub(r'[^a-zA-Z0-9]', '', name) #''.join(filter(str.isalnum, name))
-        self.score = 0
-        self.resistance = 0
+        self.score = 0.0
+        self.resistance = 0.0
         self.matches = ""
         self.dropped = False
+        self.winpercentage = 0.0
 
 
     def __str__(self):
@@ -28,10 +29,10 @@ class Matchup():
 
 
     def __str__(self):
-        return f"{self.player1.name} vs {self.player2.name}"
+        return f"{self.player1.name} vs {self.player2.name if self.player2 else "BYE"}"
 
     def __repr__(self):
-        return f"{self.player1.name} vs {self.player2.name}"
+        return f"{self.player1.name} vs {self.player2.name if self.player2 else "BYE"}"
 
 
 class Round():
