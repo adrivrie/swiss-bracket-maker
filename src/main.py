@@ -413,7 +413,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     player.resistance = sum(owps) / len(owps)
                 else:
                     # no matches found so first round was a BYE
-                    player.resistance = 0.25
+                    player.resistance = 25
 
             self.update_player_table()
 
