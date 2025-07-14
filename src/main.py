@@ -353,6 +353,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 if matchup.player2:
                     matchup.player2.score += matchup.score_player2
 
+            # TODO: Now update the resistance for every player with the new scores
+
             self.update_player_table()
 
             print("Round locked! Editing disabled.")
@@ -436,9 +438,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 if len(selected_players) == 0:
                     raise ValueError()
                 round1_matches = create_bracket(selected_players)
-                bracket = build_full_bracket_from_first_round(round1_matches)
-                print(bracket)
-                self.show_classic_bracket(bracket)
+                # TODO: Future work. Create full interactive bracket page
+                # bracket = build_full_bracket_from_first_round(round1_matches)
+                self.show_classic_bracket(round1_matches)
                 dialog.accept()
             except ValueError:
                 QMessageBox.warning(self, "Invalid Input", "Please enter a valid integer.")
@@ -474,11 +476,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 if len(selected_players) < 2:
                     QMessageBox.warning(self, "Invalid Input", "Not enough players have a high enough score.")
                     return
-                sorted_players = sorted(selected_players, key=lambda p: p.score, reverse=True)
+                # TODO: Sort by score then by resistance
+                sorted_players = sorted(selected_players, key=lambda p: (p.score, p.resistance), reverse=True)
                 round1_matches = create_bracket(sorted_players)
-                bracket = build_full_bracket_from_first_round(round1_matches)
-                print(bracket)
-                self.show_classic_bracket(bracket)
+                # TODO: Future work. Create full interactive bracket page
+                # bracket = build_full_bracket_from_first_round(round1_matches)
+                self.show_classic_bracket(round1_matches)
                 dialog.accept()
             except ValueError:
                 QMessageBox.warning(self, "Invalid Format", "Enter valid numbers only.")
@@ -488,7 +491,86 @@ class MainWindow(QtWidgets.QMainWindow):
 
         dialog.exec()
 
+    def show_classic_bracket(self, matchups: list[Matchup]):
+        """
+        Displays a single-round bracket as a table for copy-pasting to Excel.
+        """
 
+        # Create the table
+        table = QTableWidget()
+        table.setColumnCount(6)
+        table.setHorizontalHeaderLabels(["P1", "P2", "Winner", "Notes", "P1Score", "P2Score"])
+        table.setSortingEnabled(False)
+
+        # Enable multi-cell selection
+        table.setSelectionBehavior(QTableWidget.SelectItems)
+        table.setSelectionMode(QTableWidget.ExtendedSelection)
+
+        for idx, matchup in enumerate(matchups):
+            table.insertRow(idx)
+
+            p1 = matchup.player1
+            p2 = matchup.player2 if matchup.player2 else Player("-")
+            winner = Player("")
+
+            if p2.name == "-":
+                winner = p1
+                matchup.score_player1 = 1.0
+
+            table.setItem(idx, 0, QTableWidgetItem(p1.name))
+            table.setItem(idx, 1, QTableWidgetItem(p2.name))
+
+            combo = QComboBox()
+            combo.setEditable(True)
+            combo.lineEdit().setReadOnly(True)
+            combo.lineEdit().setPlaceholderText("Select winner...")
+
+            combo.addItem(p1.name)
+            if p2.name != "-":
+                combo.addItem(p2.name)
+
+            if winner.name:
+                combo.setCurrentText(winner.name)
+            else:
+                combo.setCurrentIndex(-1)
+
+            combo.currentTextChanged.connect(
+                lambda name, row=idx: self.on_winner_changed(row, name, table, matchups)
+            )
+            table.setCellWidget(idx, 2, combo)
+
+            table.setItem(idx, 3, QTableWidgetItem(str(matchup.notes)))
+            table.setItem(idx, 4, QTableWidgetItem(str(matchup.score_player1)))
+            table.setItem(idx, 5, QTableWidgetItem(str(matchup.score_player2)))
+
+        table.cellChanged.connect(
+            lambda row, col, t=table, m=matchups: self.on_cell_changed(t, m, row, col)
+        )
+
+        # Container widget
+        container = QWidget()
+        layout = QVBoxLayout(container)
+
+        # Add a copy button for first 2 columns
+        copy_button = QPushButton("Copy P1 & P2 columns to clipboard")
+        copy_button.clicked.connect(lambda: self.copy_first_two_columns(table))
+        layout.addWidget(copy_button)
+
+        layout.addWidget(table)
+        container.setLayout(layout)
+
+        self.ui.tabWidget.addTab(container, "Final Bracket")
+        self.ui.settingsMessage.setText("Bracket matchups displayed.")
+
+    def copy_first_two_columns(self, table: QTableWidget):
+        rows = table.rowCount()
+        output = ""
+        for row in range(rows):
+            p1 = table.item(row, 0).text() if table.item(row, 0) else ""
+            p2 = table.item(row, 1).text() if table.item(row, 1) else ""
+            output += f"{p1}\t{p2}\n"
+        QApplication.clipboard().setText(output)
+        self.ui.settingsMessage.setText("Copied first two columns to clipboard.")
 
 
 if __name__ == '__main__':

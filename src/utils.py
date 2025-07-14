@@ -87,13 +87,13 @@ def create_bracket(participants) -> list[Matchup]:
         match_seeds = round_match_seeds
 
     matches = []
-    print(match_seeds)
     for match in match_seeds:
         p1 = participants[match[0]-1] if match[0] is not None else Player("BYE")
         p2 = participants[match[1]-1] if match[1] is not None else Player("BYE")
         new_match = Matchup(p1, p2)
         matches.append(new_match)
 
+    print(matches)
 
     return matches
 
