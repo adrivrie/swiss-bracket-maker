@@ -22,6 +22,8 @@ def generate_matchups(players: list[Player]) -> list[Matchup]:
 
     Randomness seeded with the sorted names of players to attempt to
     make it reproducible and non-manipulable.
+
+    TODO: try a faster approach first and use this as fallback
     """
 
     players_in_round = [player for player in players if not player.dropped]
