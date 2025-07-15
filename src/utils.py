@@ -2,8 +2,11 @@
 import win32clipboard
 from classes import *
 from copy import deepcopy
-import numpy as np
 import math
+import random
+from itertools import combinations
+import numpy as np
+import networkx as nx
 
 def get_clipboard_data() -> str:
     win32clipboard.OpenClipboard()
@@ -13,35 +16,67 @@ def get_clipboard_data() -> str:
     return data
 
 def generate_matchups(players: list[Player]) -> list[Matchup]:
-    from random import shuffle
+    """
+    Generate matchups by maximum weight matching, applying a penalty
+    to up and down pairing, and disallowing repeat matchups completely.
 
-    players_copy = []
-    for p in players:
-        if not p.dropped:
-            players_copy.append(deepcopy(p))
+    Randomness seeded with the sorted names of players to attempt to
+    make it reproducible and non-manipulable.
+    """
 
-    shuffle(players_copy)
-    for player in players_copy:
-        if player.dropped:
-            players_copy.remove(player)
-    matchups = []
-    while len(players_copy) >=2:
-        p1, p2 = np.random.choice(players_copy, size=2, replace=False)
-        players_copy.remove(p1)
-        players_copy.remove(p2)
+    players_in_round = [player for player in players if not player.dropped]
 
-        new_matchup = Matchup(get_player_by_name(players, p1.name), get_player_by_name(players, p2.name))
-        matchups.append(new_matchup)
+    #networkx uses both random and numpy.random interchangably
+    random.seed("".join([player.clean_name for player in players_in_round]))
+    np.random.seed(random.randint(0, 2**32-1))
 
-    if len(players_copy) == 1:
-        # bye matchup
-        lucky_player = players_copy[0]
-        lucky_player = get_player_by_name(players, lucky_player.name)
-        new_matchup = Matchup(lucky_player, None, "BYE")
-        matchups.append(new_matchup)
+    random.shuffle(players_in_round)
 
+    integer_scores = assign_integer_scores(players_in_round)
+
+    # create the matchup graph
+    player_graph = nx.Graph()
+    for player1, player2 in combinations(players_in_round, 2):
+        difference = abs(integer_scores[player1] - integer_scores[player2])
+        player_graph.add_edge(player1, player2, weight=difference**3)
+
+    # ensure that there's an even number of players by adding a BYE
+    if len(players_in_round) % 2:
+        for player in players_in_round:
+            player_graph.add_edge(player, "BYE", weight=integer_scores[player]**3)
+
+    # find a minimum weight maximum cardinality matching
+    matching = nx.min_weight_matching(player_graph)
+
+    matchups: list[Matchup] = []
+    for matchup in matching:
+        if "BYE" in matchup:
+            bye_player = matchup[1] if matchup[0] == "BYE" else matchup[0]
+            matchups.append(Matchup(bye_player, None, "BYE"))
+            continue
+        matchups.append(Matchup(*matchup))
+
+    # put the highest scores first because that's intuitive
+    matchups.sort(reverse=True, key=lambda x: (x.player1.score, x.player1.name))
     return matchups
 
+def assign_integer_scores(players: list[Player]) -> dict[int, Player]:
+    """
+    Assigns ordinal integer scores to the players,
+    as float scores are supported by the scoring system
+    but not (properly) by the graph algorithms.
+    """
+
+    player_integers = {}
+    players = sorted(players, key=lambda x: x.score)
+    score = players[0].score
+    integer_score = 0
+    for player in players:
+        if not math.isclose(player.score, score):
+            integer_score += 1
+        score = player.score
+        player_integers[player] = integer_score
+    return player_integers
 
 def get_player_by_name(players: list[Player], name: str) -> Player:
     for player in players:
