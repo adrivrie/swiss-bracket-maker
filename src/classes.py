@@ -6,7 +6,7 @@ class Player():
         self.clean_name = re.sub(r'[^a-zA-Z0-9]', '', name) #''.join(filter(str.isalnum, name))
         self.score = 0.0
         self.resistance = 0.0
-        self.matches = ""
+        self.matches: list[Matchup] = []
         self.dropped = False
         self.winpercentage = 0.0
 

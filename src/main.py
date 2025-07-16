@@ -374,23 +374,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # Update the scores for every player
             for matchup in round.matchups:
+                matchup.player1.matches.append(matchup)
                 matchup.player1.score += matchup.score_player1
                 if matchup.player2:
+                    matchup.player2.matches.append(matchup)
                     matchup.player2.score += matchup.score_player2
             
             # TODO: Can probably be a lot better
             # Update the win percentrage for every player
             for player in self.players:
                 total_wins = 0
-                played_rounds = 0
-                for played_round in self.rounds:
-                    for match in played_round.matchups:
-                        # Find the player's match
-                        if player == match.player1 or player == match.player2:
-                            played_rounds += 1
-                            if match.winner == player:
-                                total_wins += 1
-                player.winpercentage = total_wins / played_rounds * 100
+                for match in player.matches:
+                    if match.winner == player:
+                        total_wins += 1
+                player.winpercentage = total_wins / len(player.matches) * 100
 
             # Update resistance
             for player in self.players:
