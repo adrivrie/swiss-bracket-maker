@@ -39,13 +39,21 @@ def generate_matchups(players: list[Player]) -> list[Matchup]:
     # create the matchup graph
     player_graph = nx.Graph()
     for player1, player2 in combinations(players_in_round, 2):
-        difference = abs(integer_scores[player1] - integer_scores[player2])
-        player_graph.add_edge(player1, player2, weight=difference**3)
+        # first make sure that these players have not played before
+        for p1_mu in player1.matches:
+            if player2 in [p1_mu.player1, p1_mu.player2]:
+                break
+        # then add their edge and assign a weight based on their score difference
+        else:
+            difference = abs(integer_scores[player1] - integer_scores[player2])
+            player_graph.add_edge(player1, player2, weight=difference**3)
 
     # ensure that there's an even number of players by adding a BYE
     if len(players_in_round) % 2:
         for player in players_in_round:
-            player_graph.add_edge(player, "BYE", weight=integer_scores[player]**3)
+            # also check if this player hasn't had a bye before
+            if None not in [mu.player2 for mu in player.matches]:
+                player_graph.add_edge(player, "BYE", weight=integer_scores[player]**3)
 
     # find a minimum weight maximum cardinality matching
     matching = nx.min_weight_matching(player_graph)
