@@ -1,7 +1,6 @@
 
 import win32clipboard
 from classes import *
-from copy import deepcopy
 import math
 import random
 from itertools import combinations
@@ -28,7 +27,7 @@ def generate_matchups(players: list[Player]) -> list[Matchup]:
 
     players_in_round = [player for player in players if not player.dropped]
 
-    #networkx uses both random and numpy.random interchangably
+    # networkx uses both random and numpy.random interchangably
     random.seed("".join([player.clean_name for player in players_in_round]))
     np.random.seed(random.randint(0, 2**32-1))
 
