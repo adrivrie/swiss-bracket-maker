@@ -9,6 +9,7 @@ from PySide6 import QtWidgets
 from utils import *
 from ui_swiss import *
 from classes import *
+import json
 
 
 
@@ -25,11 +26,104 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.importPlayersClipboardButton.clicked.connect(self.import_players_from_clipboard)
         self.ui.generateRound.clicked.connect(self.generate_round)
         self.ui.generateBracket.clicked.connect(self.on_generate_final_bracket_clicked)
+        self.ui.importButton.clicked.connect(self.import_session)
+        self.ui.exportButton.clicked.connect(self.export_session)
 
         # set column headers in players table
         self.ui.playersTableWidget.setColumnCount(5)
         self.ui.playersTableWidget.setHorizontalHeaderLabels(["Drop", "Name", "Score", "Resistance", "Win Percentage"])
         self.ui.playersTableWidget.cellChanged.connect(self.on_player_cell_changed)
+
+    def import_session(self):
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Tournament Data",
+            "",
+            "JSON Files (*.json)"
+        )
+        if not file_name:
+            return
+        # Parse the file
+        try:
+            with open(file_name, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            QMessageBox.critical(self, "Import Failed", f"Could not load file:\n{e}")
+            return None, None
+
+        # Step 1: Rebuild players
+        self.players = []
+        for p_data in data.get("players", []):
+            p = Player(p_data["name"])
+            p.clean_name = p_data["clean_name"]
+            p.score = p_data["score"]
+            p.resistance = p_data["resistance"]
+            p.dropped = p_data["dropped"]
+            p.winpercentage = p_data["winpercentage"]
+            self.players.append(p)
+            self.create_player_table_entry(p)
+
+        # Step 2: Rebuild rounds and matchups
+        for r_data in data.get("rounds", []):
+            matchups = []
+            for m_data in r_data["matchups"]:
+                p1 = get_player_by_name(self.players,m_data["player1"])
+                p2 = get_player_by_name(self.players,m_data["player2"]) if m_data["player2"] else None
+
+                matchup = Matchup(p1, p2, m_data["notes"])
+                matchup.score_player1 = m_data["score_player1"]
+                matchup.score_player2 = m_data["score_player2"]
+
+                # Restore winner if set
+                if m_data["winner"]:
+                    matchup.winner = get_player_by_name(self.players,m_data["winner"])
+
+                matchups.append(matchup)
+            self.generate_round(matchups=matchups, locked=r_data["locked"])
+
+        # Step 3: Restore player.matches (match history)
+        for r in self.rounds:
+            for m in r.matchups:
+                if m.player1:
+                    m.player1.matches.append(m)
+                if m.player2:
+                    m.player2.matches.append(m)
+
+        QMessageBox.information(self, "Import Successful", f"Tournament loaded from:\n{file_name}")
+
+        # Make all the tabs
+        pass
+
+
+    def export_session(self):
+        # Convert data to dict
+        data = {
+            "players": [p.to_dict() for p in self.players],
+            "rounds": [r.to_dict() for r in self.rounds]
+        }
+
+        # Create new file
+        file_name, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Tournament Data",
+            "",
+            "JSON Files (*.json)"
+        )
+
+        if not file_name:
+            return
+
+        # Ensure file ends with .json
+        if not file_name.endswith(".json"):
+            file_name += ".json"
+        try:
+            with open(file_name, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+
+            QMessageBox.information(self, "Export Successful", f"Tournament saved to:\n{file_name}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", f"Could not save file:\n{e}")
+
 
     def on_player_cell_changed(self, row, column):
         # Get Player object from Name column
@@ -129,7 +223,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 player.dropped = False
 
 
-    def generate_round(self):
+    def generate_round(self, checked: bool = False, matchups=[], locked=False):
         if len(self.players) == 0:
             self.ui.settingsMessage.setText(f"Import players before generating a round!")
             return
@@ -145,8 +239,9 @@ class MainWindow(QtWidgets.QMainWindow):
         table.setSortingEnabled(True)
 
         # Generate the matchups and display them
-        matchups = generate_matchups(self.players)
-        new_round = Round(matchups)
+        if not matchups:
+            matchups = generate_matchups(self.players)
+        new_round = Round(matchups, locked)
         self.rounds.append(new_round)
         round_number = len(self.rounds)
         for idx, matchup in enumerate(matchups):
@@ -168,6 +263,7 @@ class MainWindow(QtWidgets.QMainWindow):
             combo = QComboBox()
             combo.setEditable(True)
             combo.lineEdit().setReadOnly(True)
+
             combo.lineEdit().setPlaceholderText("Select winner...")
             combo.setStyleSheet("QComboBox { combobox-popup: 0; }")  # Optional styling
 
@@ -187,6 +283,10 @@ class MainWindow(QtWidgets.QMainWindow):
             table.setItem(idx, 3, QTableWidgetItem(str(matchup.notes)))
             table.setItem(idx, 4, QTableWidgetItem(str(matchup.score_player1)))
             table.setItem(idx, 5, QTableWidgetItem(str(matchup.score_player2)))
+            if matchup.winner:
+                index = combo.findText(matchup.winner.name)
+                combo.setCurrentIndex(index)
+                self.on_winner_changed(idx, matchup.winner.name, table, matchups)
 
         table.cellChanged.connect(lambda row, col, t=table, m=matchups: self.on_cell_changed(t, m, row, col))
 
