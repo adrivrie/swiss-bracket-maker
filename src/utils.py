@@ -14,7 +14,7 @@ def get_clipboard_data() -> str:
 
     return data
 
-def generate_matchups(players: list[Player]) -> list[Matchup]:
+def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchup]:
     """
     Generate matchups by maximum weight matching, applying a penalty
     to up and down pairing, and disallowing repeat matchups completely.
@@ -24,6 +24,8 @@ def generate_matchups(players: list[Player]) -> list[Matchup]:
 
     TODO: try a faster approach first and use this as fallback
     """
+
+    players = calculate_players_stats(players, rounds)
 
     players_in_round = [player for player in players if not player.dropped]
 
@@ -39,20 +41,22 @@ def generate_matchups(players: list[Player]) -> list[Matchup]:
     player_graph = nx.Graph()
     for player1, player2 in combinations(players_in_round, 2):
         # first make sure that these players have not played before
-        for p1_mu in player1.matches:
-            if player2 in [p1_mu.player1, p1_mu.player2]:
-                break
+        # TODO: use rounds instead of player matches
+        # for p1_mu in player1.matches:
+        #     if player2 in [p1_mu.player1, p1_mu.player2]:
+        #         break
         # then add their edge and assign a weight based on their score difference
-        else:
-            difference = abs(integer_scores[player1] - integer_scores[player2])
-            player_graph.add_edge(player1, player2, weight=difference**3)
+        # else:
+        difference = abs(integer_scores[player1] - integer_scores[player2])
+        player_graph.add_edge(player1, player2, weight=difference**3)
 
     # ensure that there's an even number of players by adding a BYE
     if len(players_in_round) % 2:
         for player in players_in_round:
             # also check if this player hasn't had a bye before
-            if None not in [mu.player2 for mu in player.matches]:
-                player_graph.add_edge(player, "BYE", weight=integer_scores[player]**3)
+            # TODO: check
+            # if None not in [mu.player2 for mu in player.matches]:
+            player_graph.add_edge(player, "BYE", weight=integer_scores[player]**3)
 
     # find a minimum weight maximum cardinality matching
     matching = nx.min_weight_matching(player_graph)
@@ -61,12 +65,12 @@ def generate_matchups(players: list[Player]) -> list[Matchup]:
     for matchup in matching:
         if "BYE" in matchup:
             bye_player = matchup[1] if matchup[0] == "BYE" else matchup[0]
-            matchups.append(Matchup(bye_player, None, "BYE"))
+            matchups.append(Matchup(bye_player.name, None, "BYE"))
             continue
-        matchups.append(Matchup(*matchup))
+        matchups.append(Matchup(matchup[0].name, matchup[1].name))
 
     # put the highest scores first because that's intuitive
-    matchups.sort(reverse=True, key=lambda x: (x.player1.score, x.player1.name))
+    # matchups.sort(reverse=True, key=lambda x: (x.player1.score, x.player1.name))
     return matchups
 
 def assign_integer_scores(players: list[Player]) -> dict[int, Player]:
@@ -140,6 +144,31 @@ def create_bracket(participants) -> list[Matchup]:
     print(matches)
 
     return matches
+
+def calculate_players_stats(players: list[Player], rounds: list[Round]) -> list[Player]:
+    new_players: dict[str, Player] = {}
+    for player in players:
+        new_players[player.name] = Player(player.name, player.dropped)
+
+    # Scores
+    for r in rounds:
+        for matchup in r.matchups:
+            new_players[matchup.player1].score += matchup.score_player1
+            new_players[matchup.player1].n_played += 1
+            new_players[matchup.player1].n_wins += matchup.winner == matchup.player1
+            
+            if matchup.player2:
+                new_players[matchup.player2].score += matchup.score_player2
+                new_players[matchup.player2].n_played += 1
+                new_players[matchup.player2].n_wins += matchup.winner == matchup.player2
+
+    # Win% and resistance
+    for r in rounds:
+        pass
+
+    return list(new_players.values())
+
+    
 
 
 def change_into_bye(seed, participants_count):
