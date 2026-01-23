@@ -25,21 +25,21 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     TODO: try a faster approach first and use this as fallback
     """
 
-    players = calculate_players_stats(players, rounds)
+    player_info_list = calculate_players_stats(players, rounds)
 
-    players_in_round = [player for player in players if not player.dropped]
+    player_info_list_in_round = [player for player in player_info_list if not player.player.dropped]
 
     # networkx uses both random and numpy.random interchangably
-    random.seed("".join([player.clean_name for player in players_in_round]))
+    random.seed("".join([player.player.name for player in player_info_list_in_round]))
     np.random.seed(random.randint(0, 2**32-1))
 
-    random.shuffle(players_in_round)
+    random.shuffle(player_info_list_in_round)
 
-    integer_scores = assign_integer_scores(players_in_round)
+    integer_scores = assign_integer_scores(player_info_list_in_round)
 
     # create the matchup graph
     player_graph = nx.Graph()
-    for player1, player2 in combinations(players_in_round, 2):
+    for player1, player2 in combinations(player_info_list_in_round, 2):
         # first make sure that these players have not played before
         # TODO: use rounds instead of player matches
         # for p1_mu in player1.matches:
@@ -51,12 +51,12 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
         player_graph.add_edge(player1, player2, weight=difference**3)
 
     # ensure that there's an even number of players by adding a BYE
-    if len(players_in_round) % 2:
-        for player in players_in_round:
+    if len(player_info_list_in_round) % 2:
+        for player_info in player_info_list_in_round:
             # also check if this player hasn't had a bye before
             # TODO: check
             # if None not in [mu.player2 for mu in player.matches]:
-            player_graph.add_edge(player, "BYE", weight=integer_scores[player]**3)
+            player_graph.add_edge(player_info, "BYE", weight=integer_scores[player_info]**3)
 
     # find a minimum weight maximum cardinality matching
     matching = nx.min_weight_matching(player_graph)
@@ -65,31 +65,31 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     for matchup in matching:
         if "BYE" in matchup:
             bye_player = matchup[1] if matchup[0] == "BYE" else matchup[0]
-            matchups.append(Matchup(bye_player.name, None, "BYE"))
+            matchups.append(Matchup(bye_player.player.name, None, "BYE"))
             continue
-        matchups.append(Matchup(matchup[0].name, matchup[1].name))
+        matchups.append(Matchup(matchup[0].player.name, matchup[1].player.name))
 
     # put the highest scores first because that's intuitive
     # matchups.sort(reverse=True, key=lambda x: (x.player1.score, x.player1.name))
     return matchups
 
-def assign_integer_scores(players: list[Player]) -> dict[int, Player]:
+def assign_integer_scores(player_info_list: list[PlayerInfo]) -> dict[PlayerInfo, int]:
     """
     Assigns ordinal integer scores to the players,
     as float scores are supported by the scoring system
     but not (properly) by the graph algorithms.
     """
 
-    player_integers = {}
-    players = sorted(players, key=lambda x: x.score)
-    score = players[0].score
+    player_info_integers = {}
+    player_info_list = sorted(player_info_list, key=lambda x: x.score)
+    score = player_info_list[0].score
     integer_score = 0
-    for player in players:
-        if not math.isclose(player.score, score):
+    for player_info in player_info_list:
+        if not math.isclose(player_info.score, score):
             integer_score += 1
-        score = player.score
-        player_integers[player] = integer_score
-    return player_integers
+        score = player_info.score
+        player_info_integers[player_info] = integer_score
+    return player_info_integers
 
 def get_player_by_name(players: list[Player], name: str) -> Player:
     for player in players:
@@ -145,28 +145,28 @@ def create_bracket(participants) -> list[Matchup]:
 
     return matches
 
-def calculate_players_stats(players: list[Player], rounds: list[Round]) -> list[Player]:
-    new_players: dict[str, Player] = {}
+def calculate_players_stats(players: list[Player], rounds: list[Round]) -> list[PlayerInfo]:
+    player_info_dict: dict[str, PlayerInfo] = {}
     for player in players:
-        new_players[player.name] = Player(player.name, player.dropped)
+        player_info_dict[player.name] = PlayerInfo(player)
 
     # Scores
     for r in rounds:
         for matchup in r.matchups:
-            new_players[matchup.player1].score += matchup.score_player1
-            new_players[matchup.player1].n_played += 1
-            new_players[matchup.player1].n_wins += matchup.winner == matchup.player1
+            player_info_dict[matchup.player1].score += matchup.score_player1
+            player_info_dict[matchup.player1].n_played += 1
+            player_info_dict[matchup.player1].n_wins += matchup.winner == matchup.player1
             
             if matchup.player2:
-                new_players[matchup.player2].score += matchup.score_player2
-                new_players[matchup.player2].n_played += 1
-                new_players[matchup.player2].n_wins += matchup.winner == matchup.player2
+                player_info_dict[matchup.player2].score += matchup.score_player2
+                player_info_dict[matchup.player2].n_played += 1
+                player_info_dict[matchup.player2].n_wins += matchup.winner == matchup.player2
 
     # Win% and resistance
     for r in rounds:
         pass
 
-    return list(new_players.values())
+    return list(player_info_dict.values())
 
     
 

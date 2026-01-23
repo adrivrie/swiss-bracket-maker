@@ -26,8 +26,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.importPlayersClipboardButton.clicked.connect(self.import_players_from_clipboard)
         self.ui.generateRound.clicked.connect(self.generate_round)
         # self.ui.generateBracket.clicked.connect(self.on_generate_final_bracket_clicked)
-        # self.ui.importButton.clicked.connect(self.import_session)
-        # self.ui.exportButton.clicked.connect(self.export_session)
+        self.ui.importButton.clicked.connect(self.import_session)
+        self.ui.exportButton.clicked.connect(self.export_session)
 
         # set column headers in players table
         self.ui.playersTableWidget.setColumnCount(5)
@@ -62,7 +62,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     continue
                 new_player = Player(name)
                 self.players.append(new_player)
-                # self.create_player_table_entry(new_player)
                 count += 1
                 current_player_names.add(name.lower())
         self.ui.settingsMessage.setText(f"Imported {count} players successfully")
@@ -81,23 +80,28 @@ class MainWindow(QtWidgets.QMainWindow):
                     continue
             new_player = Player(name)
             self.players.append(new_player)
-            # self.create_player_table_entry(new_player)
             count += 1
             current_player_names.add(name.lower())
         self.ui.settingsMessage.setText(f"Imported {count} players successfully")
 
     def create_players_table(self):
         # First calculate all the players' stats
-        player_list = calculate_players_stats(self.players, self.rounds)
+        player_info_list = calculate_players_stats(self.players, self.rounds)
         
+        print([p.name for p in self.players if p.dropped])
+        print(len([p.name for p in self.players if p.dropped]))
+
+        # Clear the table
+        self.ui.playersTableWidget.setRowCount(0)
+
         # Create the table
-        for player in player_list:
-            self.create_player_table_entry(player)
+        for player_info in player_info_list:
+            self.create_player_table_entry(player_info)
         
 
 
 
-    def create_player_table_entry(self, player: Player):
+    def create_player_table_entry(self, player_info: PlayerInfo):
         # Get the table row index
         rowPosition = self.ui.playersTableWidget.rowCount()
         self.ui.playersTableWidget.insertRow(rowPosition)
@@ -105,7 +109,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Create a centered checkbox cell
         checkbox = QCheckBox()
-        checkbox.stateChanged.connect(lambda state, p=player: self.on_checkbox_state_changed(state, p))
+        checkbox.setChecked(player_info.player.dropped)
+        checkbox.stateChanged.connect(lambda state, player=player_info.player: self.on_checkbox_state_changed(state, player))
         # Create a widget to hold the layout
         centered_widget = QWidget()
         layout = QHBoxLayout(centered_widget)
@@ -116,14 +121,14 @@ class MainWindow(QtWidgets.QMainWindow):
         # Set the widget in the cell
         self.ui.playersTableWidget.setCellWidget(rowPosition, 0, centered_widget)
 
-        if player.n_played:
-            player_win_percentage = player.n_wins / player.n_played * 100
+        if player_info.n_played:
+            player_win_percentage = player_info.n_wins / player_info.n_played * 100
         else:
             player_win_percentage = 0
 
-        self.ui.playersTableWidget.setItem(rowPosition, 1, QTableWidgetItem(player.name))
-        self.ui.playersTableWidget.setItem(rowPosition, 2, QTableWidgetItem(str(player.score)))
-        self.ui.playersTableWidget.setItem(rowPosition, 3, QTableWidgetItem(str(player.resistance)))
+        self.ui.playersTableWidget.setItem(rowPosition, 1, QTableWidgetItem(player_info.player.name))
+        self.ui.playersTableWidget.setItem(rowPosition, 2, QTableWidgetItem(str(player_info.score)))
+        self.ui.playersTableWidget.setItem(rowPosition, 3, QTableWidgetItem(str(player_info.resistance)))
         self.ui.playersTableWidget.setItem(rowPosition, 4, QTableWidgetItem(str(player_win_percentage) + "%"))
 
 
@@ -261,9 +266,6 @@ class MainWindow(QtWidgets.QMainWindow):
             player1_item = table.item(row, 0)
             player2_item = table.item(row, 1)
 
-            if not player1_item or not player2_item:
-                continue  # Skip if row is incomplete
-
             player1 = player1_item.text().strip().lower()
             player2 = player2_item.text().strip().lower()
 
@@ -275,7 +277,106 @@ class MainWindow(QtWidgets.QMainWindow):
                         index = widget.findText(winner, Qt.MatchFixedString)
                         if index >= 0:
                             widget.setCurrentIndex(index)
-                    break  # Move to next row after a match
+                    break
+
+
+    def export_session(self):
+        # Convert data to dict
+        player_dump = {
+            player.name: player.dropped for player in self.players
+        }
+        data = {
+            "players": player_dump,
+            "rounds": [r.to_dict() for r in self.rounds]
+        }
+
+        # Create new file
+        file_name, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Tournament Data",
+            "",
+            "JSON Files (*.json)"
+        )
+
+        if not file_name:
+            return
+
+        # Ensure file ends with .json
+        if not file_name.endswith(".json"):
+            file_name += ".json"
+        try:
+            with open(file_name, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+
+            QMessageBox.information(self, "Export Successful", f"Tournament saved to:\n{file_name}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", f"Could not save file:\n{e}")
+
+
+    def import_session(self):
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Tournament Data",
+            "",
+            "JSON Files (*.json)"
+        )
+        if not file_name:
+            return
+        # Parse the file
+        try:
+            with open(file_name, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            QMessageBox.critical(self, "Import Failed", f"Could not load file:\n{e}")
+            return None, None
+
+        # Delete old tabs
+        tabs_to_remove = []
+        for i in range(self.ui.tabWidget.count())[::-1]:
+            tab_text = self.ui.tabWidget.tabText(i)
+            if 'R' in tab_text:
+                tabs_to_remove.append(i)
+        for i in sorted(tabs_to_remove, reverse=True):
+            self.ui.tabWidget.removeTab(i)
+
+        # Step 1: Rebuild players
+        self.players = []
+        for p_name, p_dropped in data.get("players", {}).items():
+            p = Player(p_name, dropped=p_dropped)
+            self.players.append(p)
+
+        # Step 2: Rebuild rounds and matchups
+        self.rounds = []
+        for round_number, r_data in enumerate(data.get("rounds", [])):
+            matchups = []
+            for saved_matchup in r_data["matchups"]:
+                p1 = saved_matchup["player1"]
+                p2 = saved_matchup["player2"]
+                notes = saved_matchup["notes"]
+
+                matchup = Matchup(p1, p2, notes)
+                matchup.score_player1 = saved_matchup["score_player1"]
+                matchup.score_player2 = saved_matchup["score_player2"]
+                matchup.winner = saved_matchup["winner"]
+
+                matchups.append(matchup)
+            saved_round = Round(matchups)
+            self.rounds.append(saved_round)
+            self.generate_round_tab(saved_round, round_number + 1)
+
+        QMessageBox.information(self, "Import Successful", f"Tournament loaded from:\n{file_name}")
+
+        # Make all the tabs
+        pass
+
+
+    def on_checkbox_state_changed(self, state: int, player: Player):
+        if state == Qt.CheckState.Checked.value:
+            print(f"{player.name} is now dropped.")
+            player.dropped = True
+        else:
+            print(f"{player.name} is now active.")
+            player.dropped = False
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

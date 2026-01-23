@@ -3,30 +3,28 @@ import re
 class Player():
     def __init__(self, name: str, dropped = False):
         self.name = name
-        self.clean_name = re.sub(r'[^a-zA-Z0-9]', '', name) #''.join(filter(str.isalnum, name))
         self.dropped = dropped
+
+    def __str__(self):
+        return f"{self.name}"
+
+    def __repr__(self):
+        return f"{self.name}"
+
+
+class PlayerInfo():
+    def __init__(self, player: Player):
+        self.player = player
         self.score = 0.0
         self.resistance = 0.0
         self.n_played = 0
         self.n_wins = 0
 
     def __str__(self):
-        return f"{self.name}: {self.score}"
+        return f"{self.player.name}: {self.score}"
 
     def __repr__(self):
-        return f"{self.name}"
-
-    def to_dict(self):
-        return {
-            "name": self.name,
-            "clean_name": self.clean_name,
-            "score": self.score,
-            "resistance": self.resistance,
-            "dropped": self.dropped,
-            "winpercentage": self.winpercentage,
-            # Export only matchup IDs or opponent names to avoid circular references
-            "matches": [f"{m.player1.name} vs {m.player2.name if m.player2 else 'BYE'}" for m in self.matches]
-        }
+        return f"{self.player.name}: {self.score}"
 
 
 class Matchup():
