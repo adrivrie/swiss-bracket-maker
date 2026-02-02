@@ -58,9 +58,8 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     if len(player_info_list_in_round) % 2:
         for player_info in player_info_list_in_round:
             # also check if this player hasn't had a bye before
-            # TODO: check
-            # if None not in [mu.player2 for mu in player.matches]:
-            player_graph.add_edge(player_info, "BYE", weight=integer_scores[player_info]**3)
+            if (None, player_info.player.name) not in already_played:
+                player_graph.add_edge(player_info, "BYE", weight=integer_scores[player_info]**3)
 
     # find a minimum weight maximum cardinality matching
     matching = nx.min_weight_matching(player_graph)
