@@ -3,7 +3,7 @@ from PySide6.QtCore import (QCoreApplication, QMetaObject, QObject, QPoint,
     QRect, QSize, QUrl, Qt, QTimer)
 from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor, QFont,
     QFontDatabase, QIcon, QLinearGradient, QPalette, QPainter, QPixmap, QPen,
-    QRadialGradient)
+    QRadialGradient, QAction, QKeySequence)
 from PySide6.QtWidgets import *
 from PySide6 import QtWidgets
 from utils import *
@@ -17,15 +17,16 @@ class MainWindow(QtWidgets.QMainWindow):
     players: list[Player] = []
     rounds: list[Round] = []
 
-    def __init__(self):
+    def __init__(self, launch_data):
         QtWidgets.QMainWindow.__init__(self)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.setWindowTitle("Swiss Bracket Maker")
 
         self.ui.ImportPlayersFileButton.clicked.connect(self.import_players_from_file)
         self.ui.importPlayersClipboardButton.clicked.connect(self.import_players_from_clipboard)
         self.ui.generateRound.clicked.connect(self.generate_round)
-        # self.ui.generateBracket.clicked.connect(self.on_generate_final_bracket_clicked)
+        self.ui.generateBracket.clicked.connect(self.on_generate_final_bracket_clicked)
         self.ui.importButton.clicked.connect(self.import_session)
         self.ui.exportButton.clicked.connect(self.export_session)
 
@@ -34,6 +35,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.playersTableWidget.setHorizontalHeaderLabels(["Drop", "Name", "Score", "Resistance", "Win Percentage"])
         # self.ui.playersTableWidget.cellChanged.connect(self.on_player_cell_changed)
         self.ui.tabWidget.currentChanged.connect(self.tab_change_controller)
+        
+        # Check if we loaded from file or not
+        print(f"Launching with previous data: {launch_data is not None}")
+        if launch_data:
+            self.import_session(launch_data)
 
     def tab_change_controller(self, index):
         """
@@ -88,15 +94,18 @@ class MainWindow(QtWidgets.QMainWindow):
         # First calculate all the players' stats
         player_info_list = calculate_players_stats(self.players, self.rounds)
         
-        print([p.name for p in self.players if p.dropped])
-        print(len([p.name for p in self.players if p.dropped]))
+        print([(p.player.name, p.score, p.resistance) for p in player_info_list if p.score > 10])
 
         # Clear the table
+        self.ui.playersTableWidget.setSortingEnabled(False)
+        self.ui.playersTableWidget.clearContents()
         self.ui.playersTableWidget.setRowCount(0)
 
         # Create the table
         for player_info in player_info_list:
             self.create_player_table_entry(player_info)
+            
+        self.ui.playersTableWidget.setSortingEnabled(True)
         
 
 
@@ -105,7 +114,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # Get the table row index
         rowPosition = self.ui.playersTableWidget.rowCount()
         self.ui.playersTableWidget.insertRow(rowPosition)
-        self.ui.playersTableWidget.setSortingEnabled(True)
 
         # Create a centered checkbox cell
         checkbox = QCheckBox()
@@ -118,18 +126,34 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # Set the widget in the cell
+        # Dropped checkbox
         self.ui.playersTableWidget.setCellWidget(rowPosition, 0, centered_widget)
+        # Player name
+        self.ui.playersTableWidget.setItem(rowPosition, 1, QTableWidgetItem(player_info.player.name))
+        # Score
+        player_score = QTableWidgetItem()
+        player_score.setData(Qt.ItemDataRole.EditRole, player_info.score)
+        self.ui.playersTableWidget.setItem(rowPosition, 2, player_score)
+        # TODO: check if double convert is needed with current python version and floats https://stackoverflow.com/questions/455612/limiting-floats-to-two-decimal-points
+        # TODO: number styling to be consistent? 0 padding etc
+        # Resistance
+        player_res = QTableWidgetItem()
+        player_res.setData(Qt.ItemDataRole.EditRole, round(player_info.resistance, 2))
+        player_res.setData(Qt.ItemDataRole.DisplayRole, f"{round(player_info.resistance, 2)}%")
+        self.ui.playersTableWidget.setItem(rowPosition, 3, player_res)
+        # self.ui.playersTableWidget.setItem(rowPosition, 3, QTableWidgetItem("{:.2f}%".format(player_info.resistance)))
 
+        # Win percentage
         if player_info.n_played:
             player_win_percentage = player_info.n_wins / player_info.n_played * 100
         else:
             player_win_percentage = 0
 
-        self.ui.playersTableWidget.setItem(rowPosition, 1, QTableWidgetItem(player_info.player.name))
-        self.ui.playersTableWidget.setItem(rowPosition, 2, QTableWidgetItem(str(player_info.score)))
-        self.ui.playersTableWidget.setItem(rowPosition, 3, QTableWidgetItem(str(player_info.resistance)))
-        self.ui.playersTableWidget.setItem(rowPosition, 4, QTableWidgetItem(str(player_win_percentage) + "%"))
+        player_win = QTableWidgetItem()
+        player_win.setData(Qt.ItemDataRole.EditRole, round(player_win_percentage, 2))
+        player_win.setData(Qt.ItemDataRole.DisplayRole, f"{round(player_win_percentage, 2)}%")
+        self.ui.playersTableWidget.setItem(rowPosition, 4, player_win)
+        # self.ui.playersTableWidget.setItem(rowPosition, 4, QTableWidgetItem("{:.2f}%".format(player_win_percentage)))
 
 
 
@@ -313,23 +337,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QMessageBox.critical(self, "Export Failed", f"Could not save file:\n{e}")
 
 
-    def import_session(self):
-        file_name, _ = QFileDialog.getOpenFileName(
-            self,
-            "Load Tournament Data",
-            "",
-            "JSON Files (*.json)"
-        )
-        if not file_name:
-            return
-        # Parse the file
-        try:
-            with open(file_name, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception as e:
-            QMessageBox.critical(self, "Import Failed", f"Could not load file:\n{e}")
-            return None, None
-
+    def import_session(self, data):
         # Delete old tabs
         tabs_to_remove = []
         for i in range(self.ui.tabWidget.count())[::-1]:
@@ -364,8 +372,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.rounds.append(saved_round)
             self.generate_round_tab(saved_round, round_number + 1)
 
-        QMessageBox.information(self, "Import Successful", f"Tournament loaded from:\n{file_name}")
-
         # Make all the tabs
         pass
 
@@ -378,8 +384,282 @@ class MainWindow(QtWidgets.QMainWindow):
             print(f"{player.name} is now active.")
             player.dropped = False
 
+
+
+    def on_generate_final_bracket_clicked(self):
+        choice_box = QMessageBox(self)
+        choice_box.setWindowTitle("Final Bracket Setup")
+
+        # Clean text with padding and slightly larger font
+        choice_box.setText(
+            "<div style='padding: 32px; font-size: 11pt;'>"
+            "How would you like to select players for the final bracket?"
+            "</div>"
+        )
+
+        choice_box.setIcon(QMessageBox.Icon.NoIcon)
+
+        # Add buttons
+        top_x_button = choice_box.addButton("Top X Players", QMessageBox.ButtonRole.AcceptRole)
+        score_cut_button = choice_box.addButton("Score Threshold", QMessageBox.ButtonRole.AcceptRole)
+        cancel_button = choice_box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+
+        # Style the buttons
+        button_style = "padding: 6px 12px; font-size: 9pt;"
+        for button in (top_x_button,score_cut_button,cancel_button):
+            button.setStyleSheet(button_style)
+            button.setMinimumWidth(140)
+
+        # Show the message box
+        choice_box.exec()
+
+        selected_button = choice_box.clickedButton()
+
+        if selected_button == top_x_button:
+            self.show_top_x_input()
+        elif selected_button == score_cut_button:
+            self.show_score_threshold_input()
+
+    def show_top_x_input(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Top X Players")
+        layout = QVBoxLayout(dialog)
+
+        layout.addWidget(QLabel("Enter number of top players (must be a power of 2):"))
+        input_field = QLineEdit()
+        layout.addWidget(input_field)
+
+        btn_layout = QHBoxLayout()
+        ok_btn = QPushButton("OK")
+        cancel_btn = QPushButton("Cancel")
+        btn_layout.addWidget(ok_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+        def on_ok():
+            try:
+                num = int(input_field.text())
+                if num < 2 or (num & (num - 1)) != 0:
+                    QMessageBox.warning(self, "Invalid Input", "Number must be a power of 2 (e.g. 2, 4, 8...).")
+                    return
+                if num > len(self.players):
+                    QMessageBox.warning(self, "Invalid Input", "More players selected than are listed.")
+                    return
+                
+                player_info_list = calculate_players_stats(self.players, self.rounds)
+                sorted_players_info = sorted(player_info_list, key=lambda p: (p.score, p.resistance), reverse=True)
+                print(sorted_players_info)
+                selected_players = sorted_players_info[:num]
+                if len(selected_players) == 0:
+                    raise ValueError()
+                round1_matches = create_bracket(selected_players)
+                # TODO: Future work. Create full interactive bracket page
+                # bracket = build_full_bracket_from_first_round(round1_matches)
+                self.show_classic_bracket(round1_matches)
+                dialog.accept()
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Input", "Please enter a valid integer.")
+
+        ok_btn.clicked.connect(on_ok)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        dialog.exec()
+
+
+    def show_score_threshold_input(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Score Threshold")
+        layout = QVBoxLayout(dialog)
+
+        layout.addWidget(QLabel("Enter score threshold (e.g. 5 points/wins):"))
+        input_field = QLineEdit()
+        layout.addWidget(input_field)
+
+        btn_layout = QHBoxLayout()
+        ok_btn = QPushButton("OK")
+        cancel_btn = QPushButton("Cancel")
+        btn_layout.addWidget(ok_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+        def on_ok():
+            text = input_field.text().strip()
+            try:
+                wins = int(text)
+                threshold_score = wins  # Adjust if you use a different score metric
+                player_info_list = calculate_players_stats(self.players, self.rounds)
+                selected_players_info = [p for p in player_info_list if p.score >= threshold_score]
+                if len(selected_players_info) < 2:
+                    QMessageBox.warning(self, "Invalid Input", "Not enough players have a high enough score.")
+                    return
+                sorted_players_info = sorted(selected_players_info, key=lambda p: (p.score, p.resistance), reverse=True)
+                round1_matches = create_bracket(sorted_players_info)
+                # TODO: Future work. Create full interactive bracket page
+                # bracket = build_full_bracket_from_first_round(round1_matches)
+                # self.show_classic_bracket(round1_matches)
+                dialog.accept()
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Format", "Enter valid numbers only.")
+
+        ok_btn.clicked.connect(on_ok)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        dialog.exec()
+
+        
+
+    def show_classic_bracket(self, matchups: list[Matchup]):
+        """
+        Displays a single-round bracket as a table for copy-pasting to Excel.
+        """
+
+        # Create the table
+        table = QTableWidget()
+
+        table.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+
+        copy_action = QAction("Copy", table)
+        copy_action.setShortcut(QKeySequence.StandardKey.Copy)
+        copy_action.triggered.connect(lambda: self.copy_selection_to_clipboard(table))
+
+        table.addAction(copy_action)
+
+        table.setColumnCount(2)
+        table.setHorizontalHeaderLabels(["P1", "P2"])
+        table.setSortingEnabled(False)
+
+        # Enable multi-cell selection
+        table.setSelectionBehavior(QTableWidget.SelectItems)
+        table.setSelectionMode(QTableWidget.ExtendedSelection)
+
+        for idx, matchup in enumerate(matchups):
+            table.insertRow(idx)
+            table.setItem(idx, 0, QTableWidgetItem(matchup.player1))
+            table.setItem(idx, 1, QTableWidgetItem(matchup.player2))
+
+        # Container widget
+        container = QWidget()
+        layout = QVBoxLayout(container)
+
+        # Add a copy button for first 2 columns
+        copy_button = QPushButton("Copy player columns to clipboard (for exporting to Excel)")
+        copy_button.clicked.connect(lambda: self.copy_first_two_columns(table))
+        layout.addWidget(copy_button)
+
+        layout.addWidget(table)
+        container.setLayout(layout)
+
+        self.ui.tabWidget.addTab(container, "Final Bracket")
+        self.ui.settingsMessage.setText("Bracket matchups displayed.")
+
+
+    def copy_selection_to_clipboard(self, table: QTableWidget):
+        selection = table.selectedRanges()
+        if not selection:
+            return
+
+        selected_range = selection[0]  # contiguous block
+        rows = range(selected_range.topRow(), selected_range.bottomRow() + 1)
+        cols = range(selected_range.leftColumn(), selected_range.rightColumn() + 1)
+
+        lines = []
+        for row in rows:
+            line = []
+            for col in cols:
+                item = table.item(row, col)
+                line.append(item.text() if item else "")
+            lines.append("\t".join(line))
+
+        text = "\n".join(lines)
+        QApplication.clipboard().setText(text)
+
+
+    def copy_first_two_columns(self, table: QTableWidget):
+        rows = table.rowCount()
+        output = ""
+        for row in range(rows):
+            p1 = table.item(row, 0).text() if table.item(row, 0) else ""
+            p2 = table.item(row, 1).text() if table.item(row, 1) else ""
+            output += f"{p1}\t{p2}\n"
+        QApplication.clipboard().setText(output)
+        self.ui.settingsMessage.setText("Copied first two columns to clipboard.")
+
+
+class StartupDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Swiss Bracket Maker")
+        self.choice = None
+
+        layout = QVBoxLayout(self)
+        label = QLabel("How do you want to launch?")
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(label)
+
+        layout.addStretch(1)
+
+        label.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: 600;
+                padding: 20px;
+            }
+        """)
+        label.setMinimumHeight(100)
+
+        button_layout = QHBoxLayout()
+        # Spacing between the 2 buttons
+        button_layout.setSpacing(16)
+        # Margin around the horizontal layout
+        button_layout.setContentsMargins(16, 0, 16, 16)
+        button_new = QPushButton("New")
+        button_prev = QPushButton("Open tournament file")
+        button_new.setMinimumSize(160, 36)
+        button_prev.setMinimumSize(160, 36)
+        button_layout.addWidget(button_new)
+        button_layout.addWidget(button_prev)
+
+        button_new.clicked.connect(lambda: self.select("new"))
+        button_prev.clicked.connect(lambda: self.select("prev"))
+
+        layout.addLayout(button_layout)
+
+    def select(self, value):
+        if value == "prev":
+            self.choice = self.read_input_file()
+
+        self.accept()
+    
+    def read_input_file(self) -> dict:
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Tournament Data",
+            "",
+            "JSON Files (*.json)"
+        )
+        if not file_name:
+            return
+        # Parse the file
+        try:
+            with open(file_name, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            QMessageBox.critical(self, "Import Failed", f"Could not load file:\n{e}")
+            return None, None
+
 if __name__ == '__main__':
+
     app = QtWidgets.QApplication([])
-    window = MainWindow()
+
+    dialog = StartupDialog()
+    dialog.exec()
+
+    # Launch main window based on choice
+    print(dialog.choice)
+    window = MainWindow(dialog.choice)
+
+
+
+    # window = MainWindow()
     window.show()
     app.exec()

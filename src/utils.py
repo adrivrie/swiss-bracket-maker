@@ -103,7 +103,7 @@ def get_matchup_by_player(matchups: list[Matchup], player: Player) -> Matchup:
         if matchup.player1 == player or matchup.player2 == player:
             return matchup
 
-def create_bracket(participants) -> list[Matchup]:
+def create_bracket(participants: list[PlayerInfo]) -> list[Matchup]:
     participants_count = len(participants)
     rounds = math.ceil(math.log(participants_count, 2))
     bracket_size = 2 ** rounds
@@ -136,14 +136,19 @@ def create_bracket(participants) -> list[Matchup]:
 
     matches = []
     for match in match_seeds:
-        p1 = participants[match[0]-1] if match[0] is not None else Player("BYE")
-        p2 = participants[match[1]-1] if match[1] is not None else Player("BYE")
+        p1 = participants[match[0]-1].player.name if match[0] is not None else "BYE"
+        p2 = participants[match[1]-1].player.name if match[1] is not None else "BYE"
         new_match = Matchup(p1, p2)
         matches.append(new_match)
 
     print(matches)
 
     return matches
+
+
+def change_into_bye(seed, participants_count):
+    return seed if seed <= participants_count else None
+
 
 def calculate_players_stats(players: list[Player], rounds: list[Round]) -> list[PlayerInfo]:
     player_info_dict: dict[str, PlayerInfo] = {}
@@ -168,11 +173,7 @@ def calculate_players_stats(players: list[Player], rounds: list[Round]) -> list[
 
     return list(player_info_dict.values())
 
-    
 
-
-def change_into_bye(seed, participants_count):
-    return seed if seed <= participants_count else None
 
 
 # TODO: Future work. Create full interactive bracket page
