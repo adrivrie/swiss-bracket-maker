@@ -39,16 +39,20 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
 
     # create the matchup graph
     player_graph = nx.Graph()
-    for player1, player2 in combinations(player_info_list_in_round, 2):
-        # first make sure that these players have not played before
-        # TODO: use rounds instead of player matches
-        # for p1_mu in player1.matches:
-        #     if player2 in [p1_mu.player1, p1_mu.player2]:
-        #         break
+    # first gather all matchups that already happened, because those can't happen again
+    already_played = set()
+    for round in rounds:
+        for matchup in round.matchups:
+            already_played.add((matchup.player1, matchup.player2))
+            already_played.add((matchup.player2, matchup.player1))
+
+    for playerinfo1, playerinfo2 in combinations(player_info_list_in_round, 2):
+        # make sure that these players have not played before
+        if (playerinfo1.player.name, playerinfo2.player.name) in already_played:
+            continue
         # then add their edge and assign a weight based on their score difference
-        # else:
-        difference = abs(integer_scores[player1] - integer_scores[player2])
-        player_graph.add_edge(player1, player2, weight=difference**3)
+        difference = abs(integer_scores[playerinfo1] - integer_scores[playerinfo2])
+        player_graph.add_edge(playerinfo1, playerinfo2, weight=difference**3)
 
     # ensure that there's an even number of players by adding a BYE
     if len(player_info_list_in_round) % 2:
@@ -69,8 +73,6 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
             continue
         matchups.append(Matchup(matchup[0].player.name, matchup[1].player.name))
 
-    # put the highest scores first because that's intuitive
-    # matchups.sort(reverse=True, key=lambda x: (x.player1.score, x.player1.name))
     return matchups
 
 def assign_integer_scores(player_info_list: list[PlayerInfo]) -> dict[PlayerInfo, int]:
@@ -161,7 +163,7 @@ def calculate_players_stats(players: list[Player], rounds: list[Round]) -> list[
             player_info_dict[matchup.player1].score += matchup.score_player1
             player_info_dict[matchup.player1].n_played += 1
             player_info_dict[matchup.player1].n_wins += matchup.winner == matchup.player1
-            
+
             if matchup.player2:
                 player_info_dict[matchup.player2].score += matchup.score_player2
                 player_info_dict[matchup.player2].n_played += 1
