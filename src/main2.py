@@ -12,6 +12,15 @@ from classes import *
 import json
 
 
+# because things are often strings, we need to hard disallow
+# some names to prevent things from breaking
+# all lowercase so we can check `name.lower() in DISALLOWED_NAMES`
+DISALLOWED_NAMES = set(
+    ["no winner",
+     "delayed",
+     "select winner..."]
+)
+
 
 class MainWindow(QtWidgets.QMainWindow):
     players: list[Player] = []
@@ -35,7 +44,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.playersTableWidget.setHorizontalHeaderLabels(["Drop", "Name", "Score", "Resistance", "Win Percentage"])
         # self.ui.playersTableWidget.cellChanged.connect(self.on_player_cell_changed)
         self.ui.tabWidget.currentChanged.connect(self.tab_change_controller)
-        
+
         # Check if we loaded from file or not
         print(f"Launching with previous data: {launch_data is not None}")
         if launch_data:
@@ -52,7 +61,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.create_players_table()
 
 
-
     def import_players_from_file(self):
         filename, _ = QFileDialog.getOpenFileName()
         if not filename:
@@ -65,6 +73,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 name = name.strip()
                 if not name or name.lower() in current_player_names:
                     print(f"Duplicate name {name}")
+                    continue
+                if name.lower() in DISALLOWED_NAMES:
+                    print(f"Disallowed name {name}")
                     continue
                 new_player = Player(name)
                 self.players.append(new_player)
@@ -84,6 +95,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if not name or name.lower() in current_player_names:
                     print(f"Duplicate name {name}")
                     continue
+            if name.lower() in DISALLOWED_NAMES:
+                print(f"Disallowed name {name}")
+                continue
             new_player = Player(name)
             self.players.append(new_player)
             count += 1
@@ -93,7 +107,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def create_players_table(self):
         # First calculate all the players' stats
         player_info_list = calculate_players_stats(self.players, self.rounds)
-        
+
         print([(p.player.name, p.score, p.resistance) for p in player_info_list if p.score > 10])
 
         # Clear the table
@@ -104,10 +118,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # Create the table
         for player_info in player_info_list:
             self.create_player_table_entry(player_info)
-            
-        self.ui.playersTableWidget.setSortingEnabled(True)
-        
 
+        self.ui.playersTableWidget.setSortingEnabled(True)
 
 
     def create_player_table_entry(self, player_info: PlayerInfo):
@@ -161,6 +173,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if len(self.players) == 0:
             self.ui.settingsMessage.setText(f"Import players before generating a round!")
             return
+
+        if not self.confirm_start_round_generation():
+            return
+
         # Generate the matchups and display them
         matchups = generate_matchups(self.players, self.rounds)
 
@@ -195,6 +211,8 @@ class MainWindow(QtWidgets.QMainWindow):
             winner_combo.addItem(matchup.player1)
             if matchup.player2 != "":
                 winner_combo.addItem(matchup.player2)
+            winner_combo.addItem("No Winner")
+            winner_combo.addItem("Delayed")
 
             # If a winner already exists (e.g., for BYEs), select them
             if matchup.winner:
@@ -245,6 +263,67 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.settingsMessage.setText(f"Created round {round_number}.")
 
 
+    def confirm_start_round_generation(self):
+        """
+        Displays some (possibly worrying) information about the rounds so far
+        and asks for confirmation that the next round is to be generated
+        """
+
+        # if first round, don't be scared
+        if not self.rounds:
+            return True
+
+        # otherwise we do some sanity checks
+        # first we check if there's delays left from very old rounds
+        text = ""
+        for i, old_round in enumerate(self.rounds[:-1]):
+            delays = 0
+            for matchup in old_round.matchups:
+                if matchup.winner == "Delayed":
+                    delays += 1
+            if delays:
+                text += f"Round {i+1} still has {delays} delayed matches.\n"
+
+        # then we gather some numbers from the last round
+        last_round = self.rounds[-1]
+        non_binary_score = False
+        delays = 0
+        no_winners = 0
+        winners = 0
+        for matchup in last_round.matchups:
+            if not matchup.winner:
+                # TODO: maybe allow user to set every unset match to no winner?
+                warning_text = f"Matchup {matchup.player1} vs {matchup.player2} has no winner selected!\n"
+                warning_text += "If this is intentional, either select \"No Winner\" or \"Delayed\" before generating the next round."
+                QMessageBox.warning(self, "Incomplete information", warning_text)
+                return False
+            elif matchup.winner == "Delayed":
+                delays += 1
+            elif matchup.winner == "No Winner":
+                no_winners += 1
+            else:
+                winners += 1
+            if matchup.score_player1 + matchup.score_player2 not in [0,1]:
+                non_binary_score = (matchup.score_player1, matchup.score_player2)
+        if non_binary_score:
+            text += f"Last round has matches with nonstandard scores, for example {non_binary_score}\n"
+        text += f"Last round had {winners} winners, {no_winners} matches without winners and {delays} delayed matches still to be played.\n"
+        if delays:
+            text += "Delayed matches will count as half a point to each player for the purposes of generating the next round."
+        text += "Are you sure you want to generate the next round?"
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Round Generation",
+            text,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            return True
+        else:
+            return False
+
 
     def on_cell_changed(self, table: QTableWidget, matchups: list, row: int, col: int):
         """
@@ -265,6 +344,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 matchup.score_player2 = 1.0
                 table.item(row, col+1).setText(f"{matchup.score_player1}")
                 table.item(row, col+2).setText(f"{matchup.score_player2}")
+            elif winner_name in ["No Winner", "Delayed"]:
+                matchup.score_player1 = 0.0
+                matchup.score_player2 = 0.0
+                table.item(row, col+1).setText(f"{matchup.score_player1}")
+                table.item(row, col+2).setText(f"{matchup.score_player2}")
+
             print(f"Updated winner for matchup {row} to {winner_name}")
         elif col == 3:
             new_value = table.item(row, col).text()
@@ -445,7 +530,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 if num > len(self.players):
                     QMessageBox.warning(self, "Invalid Input", "More players selected than are listed.")
                     return
-                
+
                 player_info_list = calculate_players_stats(self.players, self.rounds)
                 sorted_players_info = sorted(player_info_list, key=lambda p: (p.score, p.resistance), reverse=True)
                 print(sorted_players_info)
@@ -506,7 +591,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         dialog.exec()
 
-        
+
 
     def show_classic_bracket(self, matchups: list[Matchup]):
         """
@@ -629,7 +714,7 @@ class StartupDialog(QDialog):
             self.choice = self.read_input_file()
 
         self.accept()
-    
+
     def read_input_file(self) -> dict:
         file_name, _ = QFileDialog.getOpenFileName(
             self,

@@ -89,13 +89,14 @@ def assign_integer_scores(player_info_list: list[PlayerInfo]) -> dict[PlayerInfo
     """
 
     player_info_integers = {}
-    player_info_list = sorted(player_info_list, key=lambda x: x.score)
-    score = player_info_list[0].score
+    # we count to-be-played games as half a point
+    player_info_list = sorted(player_info_list, key=lambda x: x.score + 0.5 * x.active_delays)
+    score = player_info_list[0].score + 0.5 * player_info_list[0].active_delays
     integer_score = 0
     for player_info in player_info_list:
-        if not math.isclose(player_info.score, score):
+        if not math.isclose(player_info.score + 0.5 * player_info.active_delays, score):
             integer_score += 1
-        score = player_info.score
+        score = player_info.score + 0.5 * player_info.active_delays
         player_info_integers[player_info] = integer_score
     return player_info_integers
 
@@ -169,11 +170,13 @@ def calculate_players_stats(players: list[Player], rounds: list[Round]) -> list[
             player_info_dict[matchup.player1].score += matchup.score_player1
             player_info_dict[matchup.player1].n_played += 1
             player_info_dict[matchup.player1].n_wins += matchup.winner == matchup.player1
+            player_info_dict[matchup.player1].active_delays += matchup.winner == "Delayed"
 
             if matchup.player2:
                 player_info_dict[matchup.player2].score += matchup.score_player2
                 player_info_dict[matchup.player2].n_played += 1
                 player_info_dict[matchup.player2].n_wins += matchup.winner == matchup.player2
+                player_info_dict[matchup.player2].active_delays += matchup.winner == "Delayed"
 
     # Win% and resistance
     for r in rounds:

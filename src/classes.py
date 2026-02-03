@@ -19,6 +19,7 @@ class PlayerInfo():
         self.resistance = 0.0
         self.n_played = 0
         self.n_wins = 0
+        self.active_delays = 0
 
     def __str__(self):
         return f"{self.player.name}: {self.score}"
