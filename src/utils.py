@@ -1,4 +1,5 @@
 
+import time
 import win32clipboard
 from classes import *
 import math
@@ -24,7 +25,8 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
 
     TODO: try a faster approach first and use this as fallback
     """
-
+    start = time.time()
+    print("Calculating necessary stats")
     player_info_list = calculate_players_stats(players, rounds)
 
     player_info_list_in_round = [player for player in player_info_list if not player.player.dropped]
@@ -62,7 +64,12 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
                 player_graph.add_edge(player_info, "BYE", weight=integer_scores[player_info]**3)
 
     # find a minimum weight maximum cardinality matching
+    print("Finding optimal matching")
     matching = nx.min_weight_matching(player_graph)
+
+    # TODO: Check if bracket is appropriate size and use fallback otherwise
+    # Should only be a problem if number of rounds approaches number of players
+    # but I have not been able to prove a lower bound (I think it might be half)
 
     matchups: list[Matchup] = []
     for matchup in matching:
@@ -71,7 +78,7 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
             matchups.append(Matchup(bye_player.player.name, None, "BYE"))
             continue
         matchups.append(Matchup(matchup[0].player.name, matchup[1].player.name))
-
+    print(f"Matchup generation took {time.time() - start} seconds")
     return matchups
 
 def assign_integer_scores(player_info_list: list[PlayerInfo]) -> dict[PlayerInfo, int]:
