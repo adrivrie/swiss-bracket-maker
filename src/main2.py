@@ -259,6 +259,10 @@ class MainWindow(QtWidgets.QMainWindow):
         paste_winners_button.clicked.connect(lambda: self.paste_winners(table))
         button_row.addWidget(paste_winners_button)
 
+        fill_unfilled_button = QPushButton("Set \"No Winner\" for Unfilled")
+        fill_unfilled_button.clicked.connect(lambda: self.unfilled_to_no_winner(table))
+        button_row.addWidget(fill_unfilled_button)
+
         clipboard_button = QPushButton("Round to Clipboard")
         clipboard_button.clicked.connect(lambda: self.round_to_clipboard(table))
         button_row.addWidget(clipboard_button)
@@ -427,6 +431,37 @@ class MainWindow(QtWidgets.QMainWindow):
                         if index >= 0:
                             widget.setCurrentIndex(index)
                     break
+
+    def unfilled_to_no_winner(self, table):
+        """
+        Fills every matchup with no winner selected to `No Winner`.
+        Nothing selected usually means "not played yet", which
+        blocks round generation. `No Winner`, on the other hand, means
+        the match will not be played, and will count as a loss for both players.
+        """
+        # first we count for a popup
+        count = 0
+        for row in range(table.rowCount()):
+            matchup: Matchup = table.item(row, 0).data(Qt.UserRole)["matchup"]
+            if not matchup.winner:
+                count += 1
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm \"No Winner\" fill",
+            f"{count} matchups will be set to \"No Winner\". Continue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            for row in range(table.rowCount()):
+                matchup: Matchup = table.item(row, 0).data(Qt.UserRole)["matchup"]
+                if not matchup.winner:
+                    widget = table.cellWidget(row, 2)
+                    if isinstance(widget, QComboBox):
+                        index = widget.findText("No Winner", Qt.MatchFixedString)
+                        if index >= 0:
+                            widget.setCurrentIndex(index)
 
 
     def round_to_clipboard(self, table: QTableWidget):
