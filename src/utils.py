@@ -165,8 +165,8 @@ def calculate_players_stats(players: list[Player], rounds: list[Round], as_dict:
         player_info_dict[player.name] = PlayerInfo(player)
 
     # Scores
-    for r in rounds:
-        for matchup in r.matchups:
+    for round in rounds:
+        for matchup in round.matchups:
             player_info_dict[matchup.player1].score += matchup.score_player1
             player_info_dict[matchup.player1].n_played += 1
             player_info_dict[matchup.player1].n_wins += matchup.winner == matchup.player1
@@ -178,9 +178,17 @@ def calculate_players_stats(players: list[Player], rounds: list[Round], as_dict:
                 player_info_dict[matchup.player2].n_wins += matchup.winner == matchup.player2
                 player_info_dict[matchup.player2].active_delays += matchup.winner == "Delayed"
 
-    # Win% and resistance
-    for r in rounds:
-        pass
+    # resistance
+    for round in rounds:
+        for matchup in round.matchups:
+            if not matchup.player2: # BYE
+                continue
+            p1 = matchup.player1
+            p2 = matchup.player2
+            # add opponent's score to resistance
+            player_info_dict[p1].resistance += player_info_dict[p2].score
+            player_info_dict[p2].resistance += player_info_dict[p1].score
+
 
     if as_dict:
         return player_info_dict

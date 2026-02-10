@@ -150,7 +150,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Resistance
         player_res = QTableWidgetItem()
         player_res.setData(Qt.ItemDataRole.EditRole, round(player_info.resistance, 2))
-        player_res.setData(Qt.ItemDataRole.DisplayRole, f"{round(player_info.resistance, 2)}%")
+        player_res.setData(Qt.ItemDataRole.DisplayRole, f"{round(player_info.resistance, 2)}")
         self.ui.playersTableWidget.setItem(rowPosition, 3, player_res)
         # self.ui.playersTableWidget.setItem(rowPosition, 3, QTableWidgetItem("{:.2f}%".format(player_info.resistance)))
 
@@ -160,6 +160,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             player_win_percentage = 0
 
+        # TODO: make it sort numerically instead of by string (i.e. 100 > 50)
         player_win = QTableWidgetItem()
         player_win.setData(Qt.ItemDataRole.EditRole, round(player_win_percentage, 2))
         player_win.setData(Qt.ItemDataRole.DisplayRole, f"{round(player_win_percentage, 2)}%")
@@ -540,6 +541,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QMessageBox.critical(self, "Export Failed", f"Could not save file:\n{e}")
 
 
+    # TODO: if we dont want the import button to exist this doesn't need to remove tabs and such
     def import_session(self, data):
         # Delete old tabs
         tabs_to_remove = []
@@ -549,6 +551,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 tabs_to_remove.append(i)
         for i in sorted(tabs_to_remove, reverse=True):
             self.ui.tabWidget.removeTab(i)
+
+        print("Rebuilding session")
+        start = time.time()
 
         # Step 1: Rebuild players
         self.players = []
@@ -575,6 +580,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.rounds.append(saved_round)
             self.generate_round_tab(saved_round, round_number + 1)
 
+        print(f"Session rebuilding took {time.time() - start} seconds")
         # Make all the tabs
         pass
 
