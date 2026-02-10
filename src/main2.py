@@ -36,7 +36,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.importPlayersClipboardButton.clicked.connect(self.import_players_from_clipboard)
         self.ui.generateRound.clicked.connect(self.generate_round)
         self.ui.generateBracket.clicked.connect(self.on_generate_final_bracket_clicked)
-        self.ui.importButton.clicked.connect(self.import_session)
         self.ui.exportButton.clicked.connect(self.export_session)
 
         # set column headers in players table
@@ -227,8 +226,6 @@ class MainWindow(QtWidgets.QMainWindow):
             p2_item = QTableWidgetItem(matchup.player2)
             p1_item.setFlags(p1_item.flags() & ~Qt.ItemIsEditable)
             p2_item.setFlags(p2_item.flags() & ~Qt.ItemIsEditable)
-            p1_item.setData(Qt.UserRole, matchup)
-            p2_item.setData(Qt.UserRole, matchup)
             table.setItem(idx, 0, p1_item)
             table.setItem(idx, 1, p2_item)
 
@@ -236,16 +233,18 @@ class MainWindow(QtWidgets.QMainWindow):
             winner_combo.currentTextChanged.connect(lambda _, combo=winner_combo, table=table: self.on_winner_changed(combo, table))
 
             p1_score_item = QTableWidgetItem(str(matchup.score_player1))
-            p1_score_item.setData(Qt.UserRole, matchup)
             table.setItem(idx, 3, p1_score_item)
 
             p2_score_item = QTableWidgetItem(str(matchup.score_player2))
-            p2_score_item.setData(Qt.UserRole, matchup)
             table.setItem(idx, 4, p2_score_item)
 
             notes_item = QTableWidgetItem(str(matchup.notes))
-            notes_item.setData(Qt.UserRole, matchup)
+
             table.setItem(idx, 5, notes_item)
+
+            # attach round index and matchup data to the first column
+            p1_item.setData(Qt.UserRole, {"round_idx": round_number-1, "matchup": matchup})
+
 
         table.cellChanged.connect(self.on_cell_changed)
 
@@ -260,10 +259,15 @@ class MainWindow(QtWidgets.QMainWindow):
         paste_winners_button.clicked.connect(lambda: self.paste_winners(table))
         button_row.addWidget(paste_winners_button)
 
-        delete_button = QPushButton("Delete Round")
-        delete_button.setStyleSheet("background-color: lightcoral;")  # visually distinct
-        delete_button.clicked.connect(lambda _, t=table, r=round, i=round_number-1: self.confirm_delete_round(t, r, i))
-        button_row.addWidget(delete_button)
+        clipboard_button = QPushButton("Round to Clipboard")
+        clipboard_button.clicked.connect(lambda: self.round_to_clipboard(table))
+        button_row.addWidget(clipboard_button)
+
+        # TODO: rethink; remove for now, possibly just remove or only for last round or error if not last round or something
+        # delete_button = QPushButton("Delete Round")
+        # delete_button.setStyleSheet("background-color: lightcoral;")  # visually distinct
+        # delete_button.clicked.connect(lambda _, t=table, r=round, i=round_number-1: self.confirm_delete_round(t, r, i))
+        # button_row.addWidget(delete_button)
 
         layout.addLayout(button_row)
 
@@ -357,7 +361,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def on_cell_changed(self, row, col):
         table = self.sender()
         item = table.item(row, col)
-        matchup = item.data(Qt.UserRole)
+        # first column stores the data in userrole
+        matchup = table.item(row, 0).data(Qt.UserRole)["matchup"]
         if not matchup:
             print(f"Error: item at row {row} and col {col} does not have matchup data attached")
             return
@@ -394,8 +399,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def find_round_row_by_matchup(self, table: QTableWidget, matchup: Matchup):
         for row in range(table.rowCount()):
-            p1_item = table.item(row, 0)  # any column that has the matchup in UserRole
-            if p1_item.data(Qt.UserRole) is matchup:
+            p1_item = table.item(row, 0)  # first column has the data in UserRole
+            if p1_item.data(Qt.UserRole)["matchup"] is matchup:
                 return row
         return -1
 
@@ -422,6 +427,49 @@ class MainWindow(QtWidgets.QMainWindow):
                         if index >= 0:
                             widget.setCurrentIndex(index)
                     break
+
+
+    def round_to_clipboard(self, table: QTableWidget):
+        round_index = table.item(0, 0).data(Qt.UserRole)["round_idx"]
+        print(f"Saving round {round_index+1} to clipboard")
+        round = self.rounds[round_index]
+        # take into account only previous rounds to get stats pre-round
+        player_stats_dict = calculate_players_stats(self.players, self.rounds[:round_index], as_dict=True)
+
+        output_str = ""
+        for row in range(table.rowCount()):
+            matchup: Matchup = table.item(row, 0).data(Qt.UserRole)["matchup"]
+            output_str += self.format_match_for_clipboard(matchup, player_stats_dict) + "\n"
+
+        QApplication.clipboard().setText(output_str)
+        print("Copied")
+
+
+    def format_match_for_clipboard(self, matchup: Matchup, player_stats_dict: dict[str, PlayerInfo]) -> str:
+        """
+        Just some annoying formatting to turn a matchup into
+        `one_name (6.0/1) — other_name (7.0)`
+        where 6.0 and 7.0 are their scores, and the /1 indicates one
+        currently delayed game for the first player.
+        """
+
+        stats1 = player_stats_dict[matchup.player1]
+        result = matchup.player1
+        result += f" ({stats1.score}"
+        if stats1.active_delays:
+            result += f"/{stats1.active_delays}"
+        result += ") — "
+        if not matchup.player2:
+            result += "BYE"
+        else:
+            stats2 = player_stats_dict[matchup.player2]
+            result += matchup.player2
+            result += f" ({stats2.score}"
+            if stats2.active_delays:
+                result += f"/{stats2.active_delays}"
+            result += ")"
+
+        return result
 
 
     def export_session(self):

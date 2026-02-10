@@ -159,7 +159,7 @@ def change_into_bye(seed, participants_count):
     return seed if seed <= participants_count else None
 
 
-def calculate_players_stats(players: list[Player], rounds: list[Round]) -> list[PlayerInfo]:
+def calculate_players_stats(players: list[Player], rounds: list[Round], as_dict: bool = False) -> list[PlayerInfo]:
     player_info_dict: dict[str, PlayerInfo] = {}
     for player in players:
         player_info_dict[player.name] = PlayerInfo(player)
@@ -182,6 +182,8 @@ def calculate_players_stats(players: list[Player], rounds: list[Round]) -> list[
     for r in rounds:
         pass
 
+    if as_dict:
+        return player_info_dict
     return list(player_info_dict.values())
 
 
