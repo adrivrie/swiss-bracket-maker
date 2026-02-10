@@ -220,22 +220,34 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 winner_combo.setCurrentIndex(-1)  # Show placeholder, no selection
 
+            winner_combo.setProperty("matchup", matchup)
+
             # Name columns should not be editable
             p1_item = QTableWidgetItem(matchup.player1)
             p2_item = QTableWidgetItem(matchup.player2)
             p1_item.setFlags(p1_item.flags() & ~Qt.ItemIsEditable)
             p2_item.setFlags(p2_item.flags() & ~Qt.ItemIsEditable)
+            p1_item.setData(Qt.UserRole, matchup)
+            p2_item.setData(Qt.UserRole, matchup)
             table.setItem(idx, 0, p1_item)
             table.setItem(idx, 1, p2_item)
 
             table.setCellWidget(idx, 2, winner_combo)
-            winner_combo.currentTextChanged.connect(lambda _, row=idx, t=table, m=round.matchups: self.on_cell_changed(t, m, row, 2))
+            winner_combo.currentTextChanged.connect(lambda _, combo=winner_combo, table=table: self.on_winner_changed(combo, table))
 
-            table.setItem(idx, 3, QTableWidgetItem(str(matchup.score_player1)))
-            table.setItem(idx, 4, QTableWidgetItem(str(matchup.score_player2)))
-            table.setItem(idx, 5, QTableWidgetItem(str(matchup.notes)))
+            p1_score_item = QTableWidgetItem(str(matchup.score_player1))
+            p1_score_item.setData(Qt.UserRole, matchup)
+            table.setItem(idx, 3, p1_score_item)
 
-        table.cellChanged.connect(lambda row, col, t=table, m=round.matchups: self.on_cell_changed(t, m, row, col))
+            p2_score_item = QTableWidgetItem(str(matchup.score_player2))
+            p2_score_item.setData(Qt.UserRole, matchup)
+            table.setItem(idx, 4, p2_score_item)
+
+            notes_item = QTableWidgetItem(str(matchup.notes))
+            notes_item.setData(Qt.UserRole, matchup)
+            table.setItem(idx, 5, notes_item)
+
+        table.cellChanged.connect(self.on_cell_changed)
 
 
         container = QWidget()
@@ -324,45 +336,68 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             return False
 
+    def on_winner_changed(self, combo: QComboBox, table: QTableWidget):
+        matchup = combo.property("matchup")
 
-    def on_cell_changed(self, table: QTableWidget, matchups: list, row: int, col: int):
-        """
-        ["P1", "P2", "Winner", "P1Score", "P2Score", "Notes"]
-        """
-        if col == 2:
-            combo = table.cellWidget(row, col)
-            winner_name = combo.currentText()
-            matchup = matchups[row]
-            matchup.winner = winner_name
-            if winner_name == matchup.player1:
-                matchup.score_player1 = 1.0
-                matchup.score_player2 = 0.0
-                table.item(row, col+1).setText(f"{matchup.score_player1}")
-                table.item(row, col+2).setText(f"{matchup.score_player2}")
-            elif winner_name == matchup.player2:
-                matchup.score_player1 = 0.0
-                matchup.score_player2 = 1.0
-                table.item(row, col+1).setText(f"{matchup.score_player1}")
-                table.item(row, col+2).setText(f"{matchup.score_player2}")
-            elif winner_name in ["No Winner", "Delayed"]:
-                matchup.score_player1 = 0.0
-                matchup.score_player2 = 0.0
-                table.item(row, col+1).setText(f"{matchup.score_player1}")
-                table.item(row, col+2).setText(f"{matchup.score_player2}")
+        winner_name = combo.currentText()
+        matchup.winner = winner_name
+        print(f"{matchup} winner changed to {matchup.winner}")
+        if winner_name == matchup.player1:
+            matchup.score_player1 = 1.0
+            matchup.score_player2 = 0.0
+        elif winner_name == matchup.player2:
+            matchup.score_player1 = 0.0
+            matchup.score_player2 = 1.0
+        else:  # No Winner / Delayed
+            matchup.score_player1 = 0.0
+            matchup.score_player2 = 0.0
 
-            print(f"Updated winner for matchup {row} to {winner_name}")
-        elif col == 3:
-            new_value = table.item(row, col).text()
-            matchups[row].score_player1 = float(new_value)
-            print(f"Updated p1score matchup {row} to {new_value}")
+        self.update_matchup_row_scores(table, matchup)
+
+    def on_cell_changed(self, row, col):
+        table = self.sender()
+        item = table.item(row, col)
+        matchup = item.data(Qt.UserRole)
+        if not matchup:
+            print(f"Error: item at row {row} and col {col} does not have matchup data attached")
+            return
+
+        value = item.text()
+
+        if col == 3:
+            matchup.score_player1 = float(value)
+            print(f"Updated p1 score in {matchup} to {value}")
         elif col == 4:
-            new_value = table.item(row, col).text()
-            matchups[row].score_player2 = float(new_value)
-            print(f"Updated p2score matchup {row} to {new_value}")
+            matchup.score_player2 = float(value)
+            print(f"Updated p2 score in {matchup} to {value}")
         elif col == 5:
-            new_value = table.item(row, col).text()
-            matchups[row].notes = new_value
-            print(f"Updated notes for matchup {row} to {new_value}")
+            matchup.notes = value
+            print(f"Updated notes in {matchup} to {value}")
+
+
+    def update_matchup_row_scores(self, table: QTableWidget, matchup: Matchup):
+        """
+        Updates *the view of* the scores for a single row after updating the winner.
+        Is O(N), if that becomes problematic caching a mapping dict can make it essentially
+        O(1) but is a bit painful.
+        """
+        row = self.find_round_row_by_matchup(table, matchup)
+        if row == -1:
+            print("Error: matchup row to be updated not found")
+            return
+
+        # stops `on_cell_changed` from being hit here
+        table.blockSignals(True)
+        table.item(row, 3).setText(str(matchup.score_player1))
+        table.item(row, 4).setText(str(matchup.score_player2))
+        table.blockSignals(False)
+
+    def find_round_row_by_matchup(self, table: QTableWidget, matchup: Matchup):
+        for row in range(table.rowCount()):
+            p1_item = table.item(row, 0)  # any column that has the matchup in UserRole
+            if p1_item.data(Qt.UserRole) is matchup:
+                return row
+        return -1
 
 
     def paste_winners(self, table):
