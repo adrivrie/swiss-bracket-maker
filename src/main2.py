@@ -313,7 +313,6 @@ class MainWindow(QtWidgets.QMainWindow):
         winners = 0
         for matchup in last_round.matchups:
             if not matchup.winner:
-                # TODO: maybe allow user to set every unset match to no winner?
                 warning_text = f"Matchup {matchup.player1} vs {matchup.player2} has no winner selected!\n"
                 warning_text += "If this is intentional, either select \"No Winner\" or \"Delayed\" before generating the next round."
                 QMessageBox.warning(self, "Incomplete information", warning_text)
