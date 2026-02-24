@@ -78,6 +78,9 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     # Should only be a problem if number of rounds approaches number of players
     # but I have not been able to prove a lower bound (I think it might be half)
 
+    # sort by score because that's nice
+    matching = sorted(matching, key=lambda x: x[0].score + x[1].score, reverse=True)
+
     matchups: list[Matchup] = []
     for matchup in matching:
         if "BYE" in matchup:
