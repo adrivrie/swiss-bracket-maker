@@ -20,6 +20,7 @@ class PlayerInfo():
         self.n_played = 0
         self.n_wins = 0
         self.active_delays = 0
+        self.mispairings = 0
 
     def __str__(self):
         return f"{self.player.name}: {self.score}"

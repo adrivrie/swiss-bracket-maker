@@ -20,8 +20,8 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     Generate matchups by maximum weight matching, applying a penalty
     to up and down pairing, and disallowing repeat matchups completely.
 
-    Randomness seeded with the sorted names of players to attempt to
-    make it reproducible and non-manipulable.
+    Randomness seeded with the sorted names of players and round number
+    to attempt to make it reproducible and non-manipulable.
 
     TODO: try a faster approach first and use this as fallback
     """
@@ -32,7 +32,9 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     player_info_list_in_round = [player for player in player_info_list if not player.player.dropped]
 
     # networkx uses both random and numpy.random interchangably
-    random.seed("".join([player.player.name for player in player_info_list_in_round]))
+    seed = "".join([player.player.name for player in player_info_list_in_round])
+    seed += str(len(rounds))
+    random.seed(seed)
     np.random.seed(random.randint(0, 2**32-1))
 
     random.shuffle(player_info_list_in_round)
@@ -54,7 +56,12 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
             continue
         # then add their edge and assign a weight based on their score difference
         difference = abs(integer_scores[playerinfo1] - integer_scores[playerinfo2])
-        player_graph.add_edge(playerinfo1, playerinfo2, weight=difference**3)
+        # weight by cubed score difference, and a small penalty term if
+        # it's a repeat mispairing
+        weight = difference**3
+        if weight:
+            weight += playerinfo1.mispairings + playerinfo2.mispairings
+        player_graph.add_edge(playerinfo1, playerinfo2, weight=weight)
 
     # ensure that there's an even number of players by adding a BYE
     if len(player_info_list_in_round) % 2:
@@ -167,16 +174,22 @@ def calculate_players_stats(players: list[Player], rounds: list[Round], as_dict:
     # Scores
     for round in rounds:
         for matchup in round.matchups:
-            player_info_dict[matchup.player1].score += matchup.score_player1
-            player_info_dict[matchup.player1].n_played += 1
-            player_info_dict[matchup.player1].n_wins += matchup.winner == matchup.player1
-            player_info_dict[matchup.player1].active_delays += matchup.winner == "Delayed"
-
+            # if not a bye matchup
             if matchup.player2:
+                was_mispairing = player_info_dict[matchup.player2].score != player_info_dict[matchup.player1].score
+                if was_mispairing:
+                    player_info_dict[matchup.player1].mispairings += 1
+                    player_info_dict[matchup.player2].mispairings += 1
+
                 player_info_dict[matchup.player2].score += matchup.score_player2
                 player_info_dict[matchup.player2].n_played += 1
                 player_info_dict[matchup.player2].n_wins += matchup.winner == matchup.player2
                 player_info_dict[matchup.player2].active_delays += matchup.winner == "Delayed"
+
+            player_info_dict[matchup.player1].score += matchup.score_player1
+            player_info_dict[matchup.player1].n_played += 1
+            player_info_dict[matchup.player1].n_wins += matchup.winner == matchup.player1
+            player_info_dict[matchup.player1].active_delays += matchup.winner == "Delayed"
 
     # resistance
     for round in rounds:
