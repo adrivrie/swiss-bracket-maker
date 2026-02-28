@@ -81,10 +81,12 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     # sort by score because that's nice
     def _get_match_score_for_sorting(match: tuple[PlayerInfo|str]):
         if "BYE" in match:
-            return 0
+            return (0, "", "")
         else:
-            return match[0].score + match[1].score + 0.5 * (match[0].active_delays + match[1].active_delays)
+            score = match[0].score + match[1].score + 0.5 * (match[0].active_delays + match[1].active_delays)
+            return (score, match[0].player.name, match[1].player.name)
 
+    # first score, then alphabetical
     matching = sorted(matching, key=_get_match_score_for_sorting, reverse=True)
 
     matchups: list[Matchup] = []
