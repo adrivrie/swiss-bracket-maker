@@ -79,7 +79,13 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     # but I have not been able to prove a lower bound (I think it might be half)
 
     # sort by score because that's nice
-    matching = sorted(matching, key=lambda x: x[0].score + x[1].score, reverse=True)
+    def _get_match_score_for_sorting(match: tuple[PlayerInfo|str]):
+        if "BYE" in match:
+            return 0
+        else:
+            return match[0].score + match[1].score + 0.5 * (match[0].active_delays + match[1].active_delays)
+
+    matching = sorted(matching, key=_get_match_score_for_sorting, reverse=True)
 
     matchups: list[Matchup] = []
     for matchup in matching:
