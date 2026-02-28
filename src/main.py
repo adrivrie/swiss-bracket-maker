@@ -467,7 +467,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def round_to_clipboard(self, table: QTableWidget):
         round_index = table.item(0, 0).data(Qt.UserRole)["round_idx"]
         print(f"Saving round {round_index+1} to clipboard")
-        round = self.rounds[round_index]
         # take into account only previous rounds to get stats pre-round
         player_stats_dict = calculate_players_stats(self.players, self.rounds[:round_index], as_dict=True)
 
