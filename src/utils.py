@@ -118,17 +118,6 @@ def assign_integer_scores(player_info_list: list[PlayerInfo]) -> dict[PlayerInfo
         player_info_integers[player_info] = integer_score
     return player_info_integers
 
-def get_player_by_name(players: list[Player], name: str) -> Player:
-    for player in players:
-        if player.name == name:
-            return player
-
-
-def get_matchup_by_player(matchups: list[Matchup], player: Player) -> Matchup:
-    for matchup in matchups:
-        # cannot check on player object because of deepcopy when making matchups
-        if matchup.player1 == player or matchup.player2 == player:
-            return matchup
 
 def create_bracket(participants: list[PlayerInfo]) -> list[Matchup]:
     participants_count = len(participants)
