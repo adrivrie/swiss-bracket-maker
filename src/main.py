@@ -329,7 +329,7 @@ class MainWindow(QtWidgets.QMainWindow):
             text += f"Last round has matches with nonstandard scores, for example {non_binary_score}\n"
         text += f"Last round had {winners} winners, {no_winners} matches without winners and {delays} delayed matches still to be played.\n"
         if delays:
-            text += "Delayed matches will count as half a point to each player for the purposes of generating the next round."
+            text += "Delayed matches will grant one random player one point for the purposes of generating the next round.\n"
         text += "Are you sure you want to generate the next round?"
 
         reply = QMessageBox.question(
