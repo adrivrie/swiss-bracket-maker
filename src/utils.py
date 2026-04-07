@@ -59,11 +59,11 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
             already_played.add((matchup.player2, matchup.player1))
 
     for playerinfo1, playerinfo2 in combinations(player_info_list_in_round, 2):
+        # add their edge and assign a weight based on their score difference
+        difference = abs(integer_scores[playerinfo1] - integer_scores[playerinfo2])
         # make sure that these players have not played before
         if (playerinfo1.player.name, playerinfo2.player.name) in already_played:
-            continue
-        # then add their edge and assign a weight based on their score difference
-        difference = abs(integer_scores[playerinfo1] - integer_scores[playerinfo2])
+            difference += 10
         # weight by double cubed score difference, and a small penalty term if
         # it's a repeat mispairing
         weight = 2 * difference**3
@@ -75,16 +75,15 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     if len(player_info_list_in_round) % 2:
         for player_info in player_info_list_in_round:
             # also check if this player hasn't had a bye before
-            if (None, player_info.player.name) not in already_played:
-                player_graph.add_edge(player_info, "BYE", weight=integer_scores[player_info]**3)
+            if (None, player_info.player.name) in already_played:
+                weight = (10 + integer_scores[player_info])**3
+            else:
+                weight = integer_scores[player_info]**3
+            player_graph.add_edge(player_info, "BYE", weight=weight)
 
     # find a minimum weight maximum cardinality matching
     print("Finding optimal matching")
     matching = nx.min_weight_matching(player_graph)
-
-    # TODO: Check if bracket is appropriate size and use fallback otherwise
-    # Should only be a problem if number of rounds approaches number of players
-    # but I have not been able to prove a lower bound (I think it might be half)
 
     # sort by score because that's nice
     def _get_match_score_for_sorting(match: tuple[PlayerInfo|str]):
