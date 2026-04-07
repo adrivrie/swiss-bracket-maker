@@ -6,6 +6,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor, QFont,
     QRadialGradient, QAction, QKeySequence)
 from PySide6.QtWidgets import *
 from PySide6 import QtWidgets
+from settings import SettingsDialog
 from utils import *
 from ui_swiss import *
 from classes import *
@@ -31,12 +32,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setWindowTitle("Swiss Bracket Maker")
+        self.settings = SettingsDialog(parent=self)
 
         self.ui.ImportPlayersFileButton.clicked.connect(self.import_players_from_file)
         self.ui.importPlayersClipboardButton.clicked.connect(self.import_players_from_clipboard)
         self.ui.generateRound.clicked.connect(self.generate_round)
         self.ui.generateBracket.clicked.connect(self.on_generate_final_bracket_clicked)
         self.ui.exportButton.clicked.connect(self.export_session)
+        self.ui.settingsButton.clicked.connect(self.open_settings)
 
         # set column headers in players table
         self.ui.playersTableWidget.setColumnCount(5)
@@ -790,6 +793,17 @@ class MainWindow(QtWidgets.QMainWindow):
             output += f"{p1}\t{p2}\n"
         QApplication.clipboard().setText(output)
         self.ui.settingsMessage.setText("Copied first two columns to clipboard.")
+
+
+    def open_settings(self):
+        """
+        Open the popup and change stuff on save
+        """
+        if self.settings.exec() == QDialog.DialogCode.Accepted:
+            # Do stuff with extension points + copy paste format
+            self.settings.p1_ext_point
+            self.settings.p2_ext_point
+
 
 
 class StartupDialog(QDialog):

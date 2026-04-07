@@ -35,11 +35,11 @@ class Ui_MainWindow(object):
         self.settingsGridLayout = QGridLayout(self.gridLayoutWidget)
         self.settingsGridLayout.setObjectName(u"settingsGridLayout")
         self.settingsGridLayout.setContentsMargins(0, 0, 0, 0)
-        self.importButton = QPushButton(self.gridLayoutWidget)
-        self.importButton.setObjectName(u"importButton")
-        self.importButton.setFlat(False)
+        self.settingsButton = QPushButton(self.gridLayoutWidget)
+        self.settingsButton.setObjectName(u"settingsButton")
+        self.settingsButton.setFlat(False)
 
-        self.settingsGridLayout.addWidget(self.importButton, 0, 0, 1, 1)
+        self.settingsGridLayout.addWidget(self.settingsButton, 0, 0, 1, 1)
 
         self.ImportPlayersFileButton = QPushButton(self.gridLayoutWidget)
         self.ImportPlayersFileButton.setObjectName(u"ImportPlayersFileButton")
@@ -101,7 +101,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
-        self.importButton.setText(QCoreApplication.translate("MainWindow", u"Import", None))
+        self.settingsButton.setText(QCoreApplication.translate("MainWindow", u"Settings", None))
         self.ImportPlayersFileButton.setText(QCoreApplication.translate("MainWindow", u"Import Players File", None))
         self.generateRound.setText(QCoreApplication.translate("MainWindow", u"Generate Round", None))
         self.generateBracket.setText(QCoreApplication.translate("MainWindow", u"Generate Final Bracket", None))
