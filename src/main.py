@@ -181,7 +181,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         # Generate the matchups and display them
-        matchups = generate_matchups(self.players, self.rounds)
+        matchups = generate_matchups(self.players, self.rounds, self.settings)
 
         new_round = Round(matchups)
         self.rounds.append(new_round)

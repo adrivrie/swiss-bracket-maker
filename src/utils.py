@@ -9,6 +9,8 @@ from itertools import combinations
 import numpy as np
 import networkx as nx
 
+from settings import SettingsDialog
+
 def get_clipboard_data() -> str:
     win32clipboard.OpenClipboard()
     data = win32clipboard.GetClipboardData()
@@ -16,7 +18,7 @@ def get_clipboard_data() -> str:
 
     return data
 
-def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchup]:
+def generate_matchups(players: list[Player], rounds: list[Round], settings: SettingsDialog) -> list[Matchup]:
     """
     Generate matchups by maximum weight matching, applying a penalty
     to up and down pairing, and disallowing repeat matchups completely.
@@ -42,7 +44,7 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     np.random.seed(random.randint(0, 2**32-1))
 
     # get scores incorporating randomly assigning delayed games' winners
-    player_info_effective_scores = get_scores_for_round_generation(player_info_list_in_round, rounds)
+    player_info_effective_scores = get_scores_for_round_generation(player_info_list_in_round, rounds, settings)
 
 
     random.shuffle(player_info_list_in_round)
@@ -106,7 +108,7 @@ def generate_matchups(players: list[Player], rounds: list[Round]) -> list[Matchu
     print(f"Matchup generation took {time.time() - start} seconds")
     return matchups
 
-def get_scores_for_round_generation(player_info_list: list[PlayerInfo], rounds: list[Round]) -> dict[PlayerInfo, float]:
+def get_scores_for_round_generation(player_info_list: list[PlayerInfo], rounds: list[Round], settings: SettingsDialog) -> dict[PlayerInfo, float]:
     """
     Calculates the score or each player to be used in round generation.
     Specifically, effective score is the sum of scores over all games for each player
@@ -120,10 +122,13 @@ def get_scores_for_round_generation(player_info_list: list[PlayerInfo], rounds: 
     for round in rounds:
         for match in round.matchups:
             if match.winner == "Delayed":
-                if random.random() > 0.5:
-                    delay_points[match.player1] += 1
+                # If we allow random point assignment and flip a coin invert the points
+                if settings.random_assignment_checkbox and random.random() > 0.5:
+                    delay_points[match.player1] += settings.p2_ext_point
+                    delay_points[match.player2] += settings.p1_ext_point
                 else:
-                    delay_points[match.player2] += 1
+                    delay_points[match.player1] += settings.p1_ext_point
+                    delay_points[match.player2] += settings.p2_ext_point
 
     effective_scores = {}
     for player_info in player_info_list:

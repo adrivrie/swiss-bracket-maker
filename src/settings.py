@@ -6,14 +6,14 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor, QFont,
     QRadialGradient, QAction, QKeySequence)
 from PySide6.QtWidgets import *
 from PySide6 import QtWidgets
-from utils import *
 from ui_swiss import *
 from classes import *
 import json
 
 class SettingsDialog(QDialog):
-    p1_ext_point = 0.5
-    p2_ext_point = 0.5
+    p1_ext_point = 1.0
+    p2_ext_point = 0.0
+    random_ext_point_assignment = True
     selected_format = "default"
 
     def __init__(self, parent=None):
@@ -51,6 +51,10 @@ class SettingsDialog(QDialog):
         dist_group.setLayout(dist_layout)
         layout.addWidget(dist_group)
 
+        self.random_assignment_checkbox = QCheckBox("Random assignment")
+        self.random_assignment_checkbox.setChecked(self.random_ext_point_assignment)
+        dist_layout.addRow(self.random_assignment_checkbox)
+
         fmt_group = QGroupBox("Copy Format")
         fmt_layout = QVBoxLayout()
         fmt_layout.setSpacing(6)
@@ -66,9 +70,28 @@ class SettingsDialog(QDialog):
         self.fmt_button_group.addButton(self.fmt_option2, id=2)
         self.fmt_button_group.addButton(self.fmt_option3, id=3)
 
-        fmt_layout.addWidget(self.fmt_default)
-        fmt_layout.addWidget(self.fmt_option2)
-        fmt_layout.addWidget(self.fmt_option3)
+        fmt_layout.addLayout(
+            self.create_radio_with_info(
+                self.fmt_default,
+                "<Player 1 name> (<Player 1 score> / <currently delayed>) — <Player 2 name> (<Player 2 score> / <currently delayed>)"
+            )
+        )
+
+        fmt_layout.addLayout(
+            self.create_radio_with_info(
+                self.fmt_option2,
+                "Alternative layout with different ordering"
+            )
+        )
+
+        fmt_layout.addLayout(
+            self.create_radio_with_info(
+                self.fmt_option3,
+                "Compact format for quick sharing"
+            )
+        )
+
+
         fmt_group.setLayout(fmt_layout)
         layout.addWidget(fmt_group)
 
@@ -89,12 +112,66 @@ class SettingsDialog(QDialog):
     def save_settings(self):
         self.p1_ext_point = self.p1_spinbox.value()
         self.p2_ext_point = self.p2_spinbox.value()
+        self.random_ext_point_assignment = self.random_assignment_checkbox.isChecked()
 
         # TODO: create actual formats
         selected_format_id = self.fmt_button_group.checkedId()
         format_names = {1: "default", 2: "format_2", 3: "format_3"}
         self.selected_format = format_names.get(selected_format_id, "default")
 
-        print(f"Saved — Player 1: {self.p1_ext_point}, Player 2: {self.p2_ext_point}, Format: {self.selected_format}")
+        print(f"""Saved the following settings:
+Player 1: {self.p1_ext_point}, Player 2: {self.p2_ext_point}
+Randomly assigned: {self.random_ext_point_assignment}
+Format: {self.selected_format}""")
 
         self.accept()
+
+    def create_radio_with_info(self, radio_button, tooltip_text):
+        layout = QHBoxLayout()
+        layout.setSpacing(6)
+
+        # Create info icon using Qt standard icon
+        info_label = QLabel()
+        icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation)
+        info_label.setPixmap(icon.pixmap(14, 14))
+
+        info_label.setToolTip(tooltip_text)
+
+        layout.addWidget(radio_button)
+        layout.addWidget(info_label)
+        layout.addStretch()
+
+        return layout
+
+    # def create_radio_with_info(self, radio_button, tooltip_text):
+    #     layout = QHBoxLayout()
+    #     layout.setSpacing(6)
+
+    #     info_label = QLabel()
+    #     icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation)
+    #     info_label.setPixmap(icon.pixmap(14, 14))
+    #     info_label.setCursor(Qt.CursorShape.PointingHandCursor)
+    #     info_label.setToolTip(tooltip_text)
+
+    #     # Toggle state
+    #     info_label._open = False
+
+    #     def toggle_info(event):
+    #         if not info_label._open:
+    #             QWhatsThis.showText(
+    #                 info_label.mapToGlobal(info_label.rect().bottomLeft()),
+    #                 tooltip_text,
+    #                 info_label
+    #             )
+    #             info_label._open = True
+    #         else:
+    #             QWhatsThis.hideText()
+    #             info_label._open = False
+
+    #     info_label.mousePressEvent = toggle_info
+
+    #     layout.addWidget(radio_button)
+    #     layout.addWidget(info_label)
+    #     layout.addStretch()
+
+    #     return layout
