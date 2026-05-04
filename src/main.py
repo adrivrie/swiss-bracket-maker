@@ -27,7 +27,7 @@ class MainWindow(QtWidgets.QMainWindow):
     players: list[Player] = []
     rounds: list[Round] = []
 
-    def __init__(self, launch_data):
+    def __init__(self, launch_data: dict | None):
         QtWidgets.QMainWindow.__init__(self)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -514,9 +514,15 @@ class MainWindow(QtWidgets.QMainWindow):
         player_dump = {
             player.name: player.dropped for player in self.players
         }
+        settings_dump = {
+            "p1_ext_point": self.settings.p1_ext_point,
+            "p2_ext_point": self.settings.p2_ext_point,
+            "random_ext_point_assignment": self.settings.random_ext_point_assignment
+        }
         data = {
             "players": player_dump,
-            "rounds": [r.to_dict() for r in self.rounds]
+            "rounds": [r.to_dict() for r in self.rounds],
+            "settings": settings_dump,
         }
 
         # Create new file
@@ -542,7 +548,6 @@ class MainWindow(QtWidgets.QMainWindow):
             QMessageBox.critical(self, "Export Failed", f"Could not save file:\n{e}")
 
 
-    # TODO: if we dont want the import button to exist this doesn't need to remove tabs and such
     def import_session(self, data):
         # Delete old tabs
         tabs_to_remove = []
@@ -581,9 +586,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.rounds.append(saved_round)
             self.generate_round_tab(saved_round, round_number + 1)
 
+        # Step 3: Override default settings
+        if "settings" in data.keys():
+            self.settings.set_settings(data['settings'])
+
         print(f"Session rebuilding took {time.time() - start} seconds")
-        # Make all the tabs
-        pass
 
 
     def on_checkbox_state_changed(self, state: int, player: Player):
@@ -800,9 +807,8 @@ class MainWindow(QtWidgets.QMainWindow):
         Open the popup and change stuff on save
         """
         if self.settings.exec() == QDialog.DialogCode.Accepted:
-            # Do stuff with extension points + copy paste format
-            self.settings.p1_ext_point
-            self.settings.p2_ext_point
+            # Do anything?
+            pass
 
 
 

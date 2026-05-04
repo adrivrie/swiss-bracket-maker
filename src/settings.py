@@ -23,6 +23,27 @@ class SettingsDialog(QDialog):
         self.setModal(True)
         self.build_ui()
 
+
+    def set_settings(self, settings: dict):
+        """
+        Override the settings with backwards compatibility that defaults
+        to the init values
+        """
+        self.p1_ext_point = settings.get('p1_ext_point', self.p1_ext_point)
+        self.p1_spinbox.setValue(self.p1_ext_point)
+
+        self.p2_ext_point = settings.get('p2_ext_point', self.p2_ext_point)
+        self.p2_spinbox.setValue(self.p2_ext_point)
+        
+        self.random_ext_point_assignment = settings.get('random_ext_point_assignment', self.random_ext_point_assignment)
+        self.random_assignment_checkbox.setChecked(self.random_ext_point_assignment)
+
+        print(f"""Saved the following settings:
+Player 1: {self.p1_ext_point}, Player 2: {self.p2_ext_point}
+Randomly assigned: {self.random_ext_point_assignment}
+Clipboard format: {self.selected_format}""")
+
+
     def build_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
@@ -35,14 +56,14 @@ class SettingsDialog(QDialog):
         self.p1_spinbox = QDoubleSpinBox()
         # TODO: range needed? 
         # self.p1_spinbox.setRange(0.0, 1.0)
-        self.p1_spinbox.setSingleStep(0.01)
+        self.p1_spinbox.setSingleStep(0.1)
         self.p1_spinbox.setDecimals(1)
         self.p1_spinbox.setValue(self.p1_ext_point)
 
         self.p2_spinbox = QDoubleSpinBox()
         # TODO: range needed? 
         # self.p2_spinbox.setRange(0.0, 1.0)
-        self.p2_spinbox.setSingleStep(0.01)
+        self.p2_spinbox.setSingleStep(0.1)
         self.p2_spinbox.setDecimals(1)
         self.p2_spinbox.setValue(self.p2_ext_point)
 
@@ -109,6 +130,7 @@ class SettingsDialog(QDialog):
         btn_layout.addWidget(save_btn)
         layout.addLayout(btn_layout)
 
+
     def save_settings(self):
         self.p1_ext_point = self.p1_spinbox.value()
         self.p2_ext_point = self.p2_spinbox.value()
@@ -122,9 +144,10 @@ class SettingsDialog(QDialog):
         print(f"""Saved the following settings:
 Player 1: {self.p1_ext_point}, Player 2: {self.p2_ext_point}
 Randomly assigned: {self.random_ext_point_assignment}
-Format: {self.selected_format}""")
+Clipboard format: {self.selected_format}""")
 
         self.accept()
+
 
     def create_radio_with_info(self, radio_button, tooltip_text):
         layout = QHBoxLayout()
