@@ -78,9 +78,9 @@ def generate_matchups(players: list[Player], rounds: list[Round], settings: Sett
         for player_info in player_info_list_in_round:
             # also check if this player hasn't had a bye before
             if (None, player_info.player.name) in already_played:
-                weight = (10 + integer_scores[player_info])**3
+                weight = (20 + integer_scores[player_info])**3
             else:
-                weight = integer_scores[player_info]**3
+                weight = (10 + integer_scores[player_info])**3
             player_graph.add_edge(player_info, "BYE", weight=weight)
 
     # find a minimum weight maximum cardinality matching
