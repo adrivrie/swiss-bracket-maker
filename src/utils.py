@@ -21,7 +21,10 @@ def get_clipboard_data() -> str:
 def generate_matchups(players: list[Player], rounds: list[Round], settings: SettingsDialog) -> list[Matchup]:
     """
     Generate matchups by maximum weight matching, applying a penalty
-    to up and down pairing, and disallowing repeat matchups completely.
+    to up and down pairing, and various undesirable pairings.
+    Undesirable here is matching a BYE with a player not at the bottom
+    of the standings, matching players who have already played each other,
+    and up/down pairing a player who's already been up/down paired previously.
 
     Randomness seeded with the sorted names of players and round number
     to attempt to make it reproducible and non-manipulable.
@@ -65,7 +68,7 @@ def generate_matchups(players: list[Player], rounds: list[Round], settings: Sett
         difference = abs(integer_scores[playerinfo1] - integer_scores[playerinfo2])
         # make sure that these players have not played before
         if (playerinfo1.player.name, playerinfo2.player.name) in already_played:
-            difference += 10
+            difference += 20
         # weight by double cubed score difference, and a small penalty term if
         # it's a repeat mispairing
         weight = 2 * difference**3
@@ -78,7 +81,7 @@ def generate_matchups(players: list[Player], rounds: list[Round], settings: Sett
         for player_info in player_info_list_in_round:
             # also check if this player hasn't had a bye before
             if (None, player_info.player.name) in already_played:
-                weight = (20 + integer_scores[player_info])**3
+                weight = (30 + integer_scores[player_info])**3
             else:
                 weight = (10 + integer_scores[player_info])**3
             player_graph.add_edge(player_info, "BYE", weight=weight)
