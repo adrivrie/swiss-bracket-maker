@@ -235,11 +235,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
             table.setCellWidget(idx, 2, winner_combo)
             winner_combo.currentTextChanged.connect(lambda _, combo=winner_combo, table=table: self.on_winner_changed(combo, table))
-
-            p1_score_item = QTableWidgetItem(str(matchup.score_player1))
+            
+            p1_score_item = QTableWidgetItem()
+            p1_score_item.setData(Qt.ItemDataRole.EditRole, matchup.score_player1)
             table.setItem(idx, 3, p1_score_item)
 
-            p2_score_item = QTableWidgetItem(str(matchup.score_player2))
+            p2_score_item = QTableWidgetItem()
+            p2_score_item.setData(Qt.ItemDataRole.EditRole, matchup.score_player2)
             table.setItem(idx, 4, p2_score_item)
 
             notes_item = QTableWidgetItem(str(matchup.notes))
@@ -490,21 +492,39 @@ class MainWindow(QtWidgets.QMainWindow):
         currently delayed game for the first player.
         """
 
-        stats1 = player_stats_dict[matchup.player1]
-        result = matchup.player1
-        result += f" ({stats1.score}"
-        if stats1.active_delays:
-            result += f"/{stats1.active_delays}"
-        result += ") — "
-        if not matchup.player2:
-            result += "BYE"
-        else:
-            stats2 = player_stats_dict[matchup.player2]
-            result += matchup.player2
-            result += f" ({stats2.score}"
-            if stats2.active_delays:
-                result += f"/{stats2.active_delays}"
-            result += ")"
+        # TODO: rework with formatting settings
+        if self.settings.selected_clipboard_format == 1:
+            stats1 = player_stats_dict[matchup.player1]
+            result = matchup.player1
+            result += f" ({stats1.score:g}"
+            if stats1.active_delays:
+                result += f"/{stats1.active_delays}"
+            result += ") — "
+            if not matchup.player2:
+                result += "BYE"
+            else:
+                stats2 = player_stats_dict[matchup.player2]
+                result += matchup.player2
+                result += f" ({stats2.score:g}"
+                if stats2.active_delays:
+                    result += f"/{stats2.active_delays}"
+                result += ")"
+        elif self.settings.selected_clipboard_format == 2:
+            stats1 = player_stats_dict[matchup.player1]
+            result = f"@{matchup.player1}"
+            result += f" ({stats1.score:g}"
+            if stats1.active_delays:
+                result += f"/{stats1.active_delays}"
+            result += ") — "
+            if not matchup.player2:
+                result += "BYE"
+            else:
+                stats2 = player_stats_dict[matchup.player2]
+                result += f"@{matchup.player2}"
+                result += f" ({stats2.score:g}"
+                if stats2.active_delays:
+                    result += f"/{stats2.active_delays}"
+                result += ")"
 
         return result
 
@@ -517,7 +537,8 @@ class MainWindow(QtWidgets.QMainWindow):
         settings_dump = {
             "p1_ext_point": self.settings.p1_ext_point,
             "p2_ext_point": self.settings.p2_ext_point,
-            "random_ext_point_assignment": self.settings.random_ext_point_assignment
+            "random_ext_point_assignment": self.settings.random_ext_point_assignment,
+            "selected_clipboard_format": self.settings.selected_clipboard_format,
         }
         data = {
             "players": player_dump,

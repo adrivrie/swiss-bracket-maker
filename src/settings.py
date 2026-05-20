@@ -14,7 +14,7 @@ class SettingsDialog(QDialog):
     p1_ext_point = 1.0
     p2_ext_point = 0.0
     random_ext_point_assignment = True
-    selected_format = "default"
+    selected_clipboard_format = 1
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -38,10 +38,20 @@ class SettingsDialog(QDialog):
         self.random_ext_point_assignment = settings.get('random_ext_point_assignment', self.random_ext_point_assignment)
         self.random_assignment_checkbox.setChecked(self.random_ext_point_assignment)
 
+        # Clipboard format
+        self.selected_clipboard_format = settings.get(
+            'selected_clipboard_format',
+            self.selected_clipboard_format
+        )
+        button = self.fmt_button_group.button(self.selected_clipboard_format)
+        if button:
+            button.setChecked(True)
+
+
         print(f"""Saved the following settings:
 Player 1: {self.p1_ext_point}, Player 2: {self.p2_ext_point}
 Randomly assigned: {self.random_ext_point_assignment}
-Clipboard format: {self.selected_format}""")
+Clipboard format: {self.selected_clipboard_format}""")
 
 
     def build_ui(self):
@@ -84,8 +94,8 @@ Clipboard format: {self.selected_format}""")
 
         self.fmt_default = QRadioButton("Default")
         self.fmt_default.setChecked(True)
-        self.fmt_option2 = QRadioButton("Format 2")
-        self.fmt_option3 = QRadioButton("Format 3")
+        self.fmt_option2 = QRadioButton("Default with @")
+        self.fmt_option3 = QRadioButton("...")
 
         self.fmt_button_group.addButton(self.fmt_default, id=1)
         self.fmt_button_group.addButton(self.fmt_option2, id=2)
@@ -101,14 +111,14 @@ Clipboard format: {self.selected_format}""")
         fmt_layout.addLayout(
             self.create_radio_with_info(
                 self.fmt_option2,
-                "Alternative layout with different ordering"
+                "@<Player 1 name> (<Player 1 score> / <currently delayed>) — @<Player 2 name> (<Player 2 score> / <currently delayed>)"
             )
         )
 
         fmt_layout.addLayout(
             self.create_radio_with_info(
                 self.fmt_option3,
-                "Compact format for quick sharing"
+                "..."
             )
         )
 
@@ -137,14 +147,13 @@ Clipboard format: {self.selected_format}""")
         self.random_ext_point_assignment = self.random_assignment_checkbox.isChecked()
 
         # TODO: create actual formats
-        selected_format_id = self.fmt_button_group.checkedId()
-        format_names = {1: "default", 2: "format_2", 3: "format_3"}
-        self.selected_format = format_names.get(selected_format_id, "default")
-
+        self.selected_clipboard_format = self.fmt_button_group.checkedId()
+        format_names = {1: "default", 2: "default with @", 3: "format_3"}
+        
         print(f"""Saved the following settings:
 Player 1: {self.p1_ext_point}, Player 2: {self.p2_ext_point}
 Randomly assigned: {self.random_ext_point_assignment}
-Clipboard format: {self.selected_format}""")
+Clipboard format: {self.selected_clipboard_format}: {format_names[self.selected_clipboard_format]}""")
 
         self.accept()
 
