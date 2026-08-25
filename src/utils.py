@@ -38,7 +38,7 @@ def generate_matchups(players: list[Player], rounds: list[Round], settings: Sett
 
     # setting seed for both random and np.random as
     # networkx uses both random and numpy.random interchangably
-    seed = "".join([player.player.name for player in player_info_list_in_round])
+    seed = "".join(sorted([player.player.name for player in player_info_list_in_round]))
     seed += str(len(rounds))
     random.seed(seed)
     np.random.seed(random.randint(0, 2**32-1))
