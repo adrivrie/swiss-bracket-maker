@@ -19,16 +19,17 @@ import json
 DISALLOWED_NAMES = set(
     ["no winner",
      "delayed",
-     "select winner..."]
+     "select winner...",
+    "bye"]
 )
 
 
 class MainWindow(QtWidgets.QMainWindow):
-    players: list[Player] = []
-    rounds: list[Round] = []
 
     def __init__(self, launch_data: dict | None):
         QtWidgets.QMainWindow.__init__(self)
+        self.players: list[Player] = []
+        self.rounds: list[Round] = []
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setWindowTitle("Swiss Bracket Maker")
@@ -46,6 +47,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.playersTableWidget.setHorizontalHeaderLabels(["Drop", "Name", "Score", "Resistance", "Win Percentage"])
         # self.ui.playersTableWidget.cellChanged.connect(self.on_player_cell_changed)
         self.ui.tabWidget.currentChanged.connect(self.tab_change_controller)
+
+        # Cells are non-editable but selectable/copyable
+        self.ui.playersTableWidget.setSelectionBehavior(QTableWidget.SelectItems)
+        self.ui.playersTableWidget.setSelectionMode(QTableWidget.ExtendedSelection)
+        self.ui.playersTableWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+        copy_action = QAction("Copy", self.ui.playersTableWidget)
+        copy_action.setShortcut(QKeySequence.StandardKey.Copy)
+        copy_action.triggered.connect(lambda: self.copy_selection_to_clipboard(self.ui.playersTableWidget))
+        self.ui.playersTableWidget.addAction(copy_action)
 
         # Check if we loaded from file or not
         print(f"Launching with previous data: {launch_data is not None}")
@@ -143,10 +153,13 @@ class MainWindow(QtWidgets.QMainWindow):
         # Dropped checkbox
         self.ui.playersTableWidget.setCellWidget(rowPosition, 0, centered_widget)
         # Player name
-        self.ui.playersTableWidget.setItem(rowPosition, 1, QTableWidgetItem(player_info.player.name))
+        name_item = QTableWidgetItem(player_info.player.name)
+        name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
+        self.ui.playersTableWidget.setItem(rowPosition, 1, name_item)
         # Score
         player_score = QTableWidgetItem()
         player_score.setData(Qt.ItemDataRole.EditRole, player_info.score)
+        player_score.setFlags(player_score.flags() & ~Qt.ItemIsEditable)
         self.ui.playersTableWidget.setItem(rowPosition, 2, player_score)
         # TODO: check if double convert is needed with current python version and floats https://stackoverflow.com/questions/455612/limiting-floats-to-two-decimal-points
         # TODO: number styling to be consistent? 0 padding etc
@@ -154,6 +167,7 @@ class MainWindow(QtWidgets.QMainWindow):
         player_res = QTableWidgetItem()
         player_res.setData(Qt.ItemDataRole.EditRole, round(player_info.resistance, 2))
         player_res.setData(Qt.ItemDataRole.DisplayRole, f"{round(player_info.resistance, 2)}")
+        player_res.setFlags(player_res.flags() & ~Qt.ItemIsEditable)
         self.ui.playersTableWidget.setItem(rowPosition, 3, player_res)
         # self.ui.playersTableWidget.setItem(rowPosition, 3, QTableWidgetItem("{:.2f}%".format(player_info.resistance)))
 
@@ -167,6 +181,7 @@ class MainWindow(QtWidgets.QMainWindow):
         player_win = QTableWidgetItem()
         player_win.setData(Qt.ItemDataRole.EditRole, round(player_win_percentage, 2))
         player_win.setData(Qt.ItemDataRole.DisplayRole, f"{round(player_win_percentage, 2)}%")
+        player_win.setFlags(player_win.flags() & ~Qt.ItemIsEditable)
         self.ui.playersTableWidget.setItem(rowPosition, 4, player_win)
         # self.ui.playersTableWidget.setItem(rowPosition, 4, QTableWidgetItem("{:.2f}%".format(player_win_percentage)))
 
@@ -379,11 +394,19 @@ class MainWindow(QtWidgets.QMainWindow):
         value = item.text()
 
         if col == 3:
-            matchup.score_player1 = float(value)
-            print(f"Updated p1 score in {matchup} to {value}")
+            try:
+                matchup.score_player1 = float(value)
+                print(f"Updated p1 score in {matchup} to {value}")
+            except ValueError:
+                print(f"Invalid score '{value}' entered, reverting")
+                self.update_matchup_row_scores(table, matchup)
         elif col == 4:
-            matchup.score_player2 = float(value)
-            print(f"Updated p2 score in {matchup} to {value}")
+            try:
+                matchup.score_player2 = float(value)
+                print(f"Updated p2 score in {matchup} to {value}")
+            except ValueError:
+                print(f"Invalid score '{value}' entered, reverting")
+                self.update_matchup_row_scores(table, matchup)
         elif col == 5:
             matchup.notes = value
             print(f"Updated notes in {matchup} to {value}")
@@ -525,6 +548,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 if stats2.active_delays:
                     result += f"/{stats2.active_delays}"
                 result += ")"
+        elif self.settings.selected_clipboard_format == 3:
+            p2_name = matchup.player2 if matchup.player2 else "BYE"
+            result = f"{matchup.player1}\t{p2_name}"
 
         return result
 
@@ -893,7 +919,7 @@ class StartupDialog(QDialog):
                 return json.load(f)
         except Exception as e:
             QMessageBox.critical(self, "Import Failed", f"Could not load file:\n{e}")
-            return None, None
+            return None
 
 if __name__ == '__main__':
 
