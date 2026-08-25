@@ -95,7 +95,7 @@ Clipboard format: {self.selected_clipboard_format}""")
         self.fmt_default = QRadioButton("Default")
         self.fmt_default.setChecked(True)
         self.fmt_option2 = QRadioButton("Default with @")
-        self.fmt_option3 = QRadioButton("...")
+        self.fmt_option3 = QRadioButton("Names only (tab-separated)")
 
         self.fmt_button_group.addButton(self.fmt_default, id=1)
         self.fmt_button_group.addButton(self.fmt_option2, id=2)
@@ -118,7 +118,7 @@ Clipboard format: {self.selected_clipboard_format}""")
         fmt_layout.addLayout(
             self.create_radio_with_info(
                 self.fmt_option3,
-                "..."
+                "<Player 1 name>\t<Player 2 name> — pastes into two columns in Excel/Sheets"
             )
         )
 
@@ -148,7 +148,7 @@ Clipboard format: {self.selected_clipboard_format}""")
 
         # TODO: create actual formats
         self.selected_clipboard_format = self.fmt_button_group.checkedId()
-        format_names = {1: "default", 2: "default with @", 3: "format_3"}
+        format_names = {1: "default", 2: "default with @", 3: "names only, tab-separated"}
         
         print(f"""Saved the following settings:
 Player 1: {self.p1_ext_point}, Player 2: {self.p2_ext_point}
