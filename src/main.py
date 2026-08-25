@@ -25,11 +25,11 @@ DISALLOWED_NAMES = set(
 
 
 class MainWindow(QtWidgets.QMainWindow):
-    players: list[Player] = []
-    rounds: list[Round] = []
 
     def __init__(self, launch_data: dict | None):
         QtWidgets.QMainWindow.__init__(self)
+        self.players: list[Player] = []
+        self.rounds: list[Round] = []
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setWindowTitle("Swiss Bracket Maker")
@@ -916,7 +916,7 @@ class StartupDialog(QDialog):
                 return json.load(f)
         except Exception as e:
             QMessageBox.critical(self, "Import Failed", f"Could not load file:\n{e}")
-            return None, None
+            return None
 
 if __name__ == '__main__':
 
