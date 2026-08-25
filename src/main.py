@@ -20,7 +20,7 @@ DISALLOWED_NAMES = set(
     ["no winner",
      "delayed",
      "select winner...",
-    "bye"]
+     "bye"]
 )
 
 
@@ -250,7 +250,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             table.setCellWidget(idx, 2, winner_combo)
             winner_combo.currentTextChanged.connect(lambda _, combo=winner_combo, table=table: self.on_winner_changed(combo, table))
-            
+
             p1_score_item = QTableWidgetItem()
             p1_score_item.setData(Qt.ItemDataRole.EditRole, matchup.score_player1)
             table.setItem(idx, 3, p1_score_item)
