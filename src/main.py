@@ -548,6 +548,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 if stats2.active_delays:
                     result += f"/{stats2.active_delays}"
                 result += ")"
+        elif self.settings.selected_clipboard_format == 3:
+            p2_name = matchup.player2 if matchup.player2 else "BYE"
+            result = f"{matchup.player1}\t{p2_name}"
 
         return result
 
