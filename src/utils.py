@@ -10,6 +10,7 @@ import numpy as np
 import networkx as nx
 
 from settings import SettingsDialog
+from tiebreak import calculate_tiebreak
 
 def get_clipboard_data() -> str:
     win32clipboard.OpenClipboard()
@@ -36,7 +37,7 @@ def generate_matchups(players: list[Player], rounds: list[Round], settings: Sett
 
 
     print("Calculating necessary stats")
-    player_info_list = calculate_players_stats(players, rounds)
+    player_info_list = calculate_players_stats(players, rounds, settings.selected_tiebreaker)
     player_info_list_in_round = [player for player in player_info_list if not player.player.dropped]
 
     # setting seed for both random and np.random as
@@ -204,7 +205,7 @@ def change_into_bye(seed, participants_count):
     return seed if seed <= participants_count else None
 
 
-def calculate_players_stats(players: list[Player], rounds: list[Round], as_dict: bool = False) -> list[PlayerInfo]:
+def calculate_players_stats(players: list[Player], rounds: list[Round], tiebreak_method_id: int, as_dict: bool = False) -> list[PlayerInfo]:
     player_info_dict: dict[str, PlayerInfo] = {}
     for player in players:
         player_info_dict[player.name] = PlayerInfo(player)
@@ -229,16 +230,9 @@ def calculate_players_stats(players: list[Player], rounds: list[Round], as_dict:
             player_info_dict[matchup.player1].n_wins += matchup.winner == matchup.player1
             player_info_dict[matchup.player1].active_delays += matchup.winner == "Delayed"
 
-    # resistance
-    for round in rounds:
-        for matchup in round.matchups:
-            if not matchup.player2: # BYE
-                continue
-            p1 = matchup.player1
-            p2 = matchup.player2
-            # add opponent's score to resistance
-            player_info_dict[p1].resistance += player_info_dict[p2].score
-            player_info_dict[p2].resistance += player_info_dict[p1].score
+    # tiebreak
+    for player, tiebreak_score in calculate_tiebreak(rounds, player_info_dict, tiebreak_method_id).items():
+        player_info_dict[player].tb_score = tiebreak_score
 
 
     if as_dict:

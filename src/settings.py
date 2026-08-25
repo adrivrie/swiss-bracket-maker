@@ -15,6 +15,7 @@ class SettingsDialog(QDialog):
     p2_ext_point = 0.0
     random_ext_point_assignment = True
     selected_clipboard_format = 1
+    selected_tiebreaker = 1
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -34,7 +35,7 @@ class SettingsDialog(QDialog):
 
         self.p2_ext_point = settings.get('p2_ext_point', self.p2_ext_point)
         self.p2_spinbox.setValue(self.p2_ext_point)
-        
+
         self.random_ext_point_assignment = settings.get('random_ext_point_assignment', self.random_ext_point_assignment)
         self.random_assignment_checkbox.setChecked(self.random_ext_point_assignment)
 
@@ -44,6 +45,15 @@ class SettingsDialog(QDialog):
             self.selected_clipboard_format
         )
         button = self.fmt_button_group.button(self.selected_clipboard_format)
+        if button:
+            button.setChecked(True)
+
+        # Tiebreak
+        self.selected_tiebreaker = settings.get(
+            'selected_tiebreaker',
+            self.selected_tiebreaker
+        )
+        button = self.tb_button_group.button(self.selected_tiebreaker)
         if button:
             button.setChecked(True)
 
@@ -64,14 +74,14 @@ Clipboard format: {self.selected_clipboard_format}""")
         dist_layout.setSpacing(8)
 
         self.p1_spinbox = QDoubleSpinBox()
-        # TODO: range needed? 
+        # TODO: range needed?
         # self.p1_spinbox.setRange(0.0, 1.0)
         self.p1_spinbox.setSingleStep(0.1)
         self.p1_spinbox.setDecimals(1)
         self.p1_spinbox.setValue(self.p1_ext_point)
 
         self.p2_spinbox = QDoubleSpinBox()
-        # TODO: range needed? 
+        # TODO: range needed?
         # self.p2_spinbox.setRange(0.0, 1.0)
         self.p2_spinbox.setSingleStep(0.1)
         self.p2_spinbox.setDecimals(1)
@@ -126,6 +136,54 @@ Clipboard format: {self.selected_clipboard_format}""")
         fmt_group.setLayout(fmt_layout)
         layout.addWidget(fmt_group)
 
+        tb_group = QGroupBox("Tiebreak method")
+        tb_layout = QVBoxLayout()
+        tb_layout.setSpacing(6)
+
+        self.tb_button_group = QButtonGroup(self)
+
+        self.tb_default = QRadioButton("Buchholz")
+        self.tb_default.setChecked(True)
+        self.tb_option2 = QRadioButton("Resistance")
+        self.tb_option3 = QRadioButton("(Opponents') Resistance")
+        self.tb_option4 = QRadioButton("Sonneborn-Berger")
+
+        self.tb_button_group.addButton(self.tb_default, id=1)
+        self.tb_button_group.addButton(self.tb_option2, id=2)
+        self.tb_button_group.addButton(self.tb_option3, id=3)
+        self.tb_button_group.addButton(self.tb_option4, id=4)
+
+        tb_layout.addLayout(
+            self.create_radio_with_info(
+                self.tb_default,
+                "Sum of opponents' scores with extrema removed"
+            )
+        )
+
+        tb_layout.addLayout(
+            self.create_radio_with_info(
+                self.tb_option2,
+                "Average opponents' winrate, floored at 25%"
+            )
+        )
+
+        tb_layout.addLayout(
+            self.create_radio_with_info(
+                self.tb_option3,
+                "Average opponents' winrate floored at 25%, with a small bonus for the opponent's resistance"
+            )
+        )
+
+        tb_layout.addLayout(
+            self.create_radio_with_info(
+                self.tb_option4,
+                "Sum of opponents scores, weighted by players results against those opponents"
+            )
+        )
+
+        tb_group.setLayout(tb_layout)
+        layout.addWidget(tb_group)
+
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
@@ -149,11 +207,15 @@ Clipboard format: {self.selected_clipboard_format}""")
         # TODO: create actual formats
         self.selected_clipboard_format = self.fmt_button_group.checkedId()
         format_names = {1: "default", 2: "default with @", 3: "names only, tab-separated"}
-        
+
+        self.selected_tiebreaker = self.tb_button_group.checkedId()
+        tb_names = {1: "Buchholz", 2: "Resistance", 3: "(Opponents') Resistance", 4: "Sonneborn-Berger"}
+
         print(f"""Saved the following settings:
 Player 1: {self.p1_ext_point}, Player 2: {self.p2_ext_point}
 Randomly assigned: {self.random_ext_point_assignment}
-Clipboard format: {self.selected_clipboard_format}: {format_names[self.selected_clipboard_format]}""")
+Clipboard format: {self.selected_clipboard_format}: {format_names[self.selected_clipboard_format]}
+Tiebreaker: {self.selected_tiebreaker}: {tb_names[self.selected_tiebreaker]}""")
 
         self.accept()
 

@@ -16,7 +16,7 @@ class PlayerInfo():
     def __init__(self, player: Player):
         self.player = player
         self.score = 0.0
-        self.resistance = 0.0
+        self.tb_score = 0.0
         self.n_played = 0
         self.n_wins = 0
         self.active_delays = 0

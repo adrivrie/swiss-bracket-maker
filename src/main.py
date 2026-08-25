@@ -44,7 +44,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # set column headers in players table
         self.ui.playersTableWidget.setColumnCount(5)
-        self.ui.playersTableWidget.setHorizontalHeaderLabels(["Drop", "Name", "Score", "Resistance", "Win Percentage"])
+        self.ui.playersTableWidget.setHorizontalHeaderLabels(["Drop", "Name", "Score", "Tiebreak", "Win Percentage"])
         # self.ui.playersTableWidget.cellChanged.connect(self.on_player_cell_changed)
         self.ui.tabWidget.currentChanged.connect(self.tab_change_controller)
 
@@ -118,9 +118,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def create_players_table(self):
         # First calculate all the players' stats
-        player_info_list = calculate_players_stats(self.players, self.rounds)
+        player_info_list = calculate_players_stats(self.players, self.rounds, self.settings.selected_tiebreaker)
 
-        print([(p.player.name, p.score, p.resistance) for p in player_info_list if p.score > 10])
+        print([(p.player.name, p.score, p.tb_score) for p in player_info_list if p.score > 10])
 
         # Clear the table
         self.ui.playersTableWidget.setSortingEnabled(False)
@@ -163,13 +163,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.playersTableWidget.setItem(rowPosition, 2, player_score)
         # TODO: check if double convert is needed with current python version and floats https://stackoverflow.com/questions/455612/limiting-floats-to-two-decimal-points
         # TODO: number styling to be consistent? 0 padding etc
-        # Resistance
-        player_res = QTableWidgetItem()
-        player_res.setData(Qt.ItemDataRole.EditRole, round(player_info.resistance, 2))
-        player_res.setData(Qt.ItemDataRole.DisplayRole, f"{round(player_info.resistance, 2)}")
-        player_res.setFlags(player_res.flags() & ~Qt.ItemIsEditable)
-        self.ui.playersTableWidget.setItem(rowPosition, 3, player_res)
-        # self.ui.playersTableWidget.setItem(rowPosition, 3, QTableWidgetItem("{:.2f}%".format(player_info.resistance)))
+        # Tiebreak
+        player_tb = QTableWidgetItem()
+        player_tb.setData(Qt.ItemDataRole.EditRole, round(player_info.tb_score, 2))
+        player_tb.setData(Qt.ItemDataRole.DisplayRole, f"{round(player_info.tb_score, 2)}")
+        player_tb.setFlags(player_tb.flags() & ~Qt.ItemIsEditable)
+        self.ui.playersTableWidget.setItem(rowPosition, 3, player_tb)
 
         # Win percentage
         if player_info.n_played:
@@ -496,7 +495,7 @@ class MainWindow(QtWidgets.QMainWindow):
         round_index = table.item(0, 0).data(Qt.UserRole)["round_idx"]
         print(f"Saving round {round_index+1} to clipboard")
         # take into account only previous rounds to get stats pre-round
-        player_stats_dict = calculate_players_stats(self.players, self.rounds[:round_index], as_dict=True)
+        player_stats_dict = calculate_players_stats(self.players, self.rounds[:round_index], self.settings.selected_tiebreaker, as_dict=True)
 
         output_str = ""
         for row in range(table.rowCount()):
@@ -565,6 +564,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "p2_ext_point": self.settings.p2_ext_point,
             "random_ext_point_assignment": self.settings.random_ext_point_assignment,
             "selected_clipboard_format": self.settings.selected_clipboard_format,
+            "selected_tiebreaker": self.settings.selected_tiebreaker,
         }
         data = {
             "players": player_dump,
@@ -710,8 +710,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     QMessageBox.warning(self, "Invalid Input", "More players selected than are listed.")
                     return
 
-                player_info_list = calculate_players_stats(self.players, self.rounds)
-                sorted_players_info = sorted(player_info_list, key=lambda p: (p.score, p.resistance), reverse=True)
+                player_info_list = calculate_players_stats(self.players, self.rounds, self.settings.selected_tiebreaker)
+                sorted_players_info = sorted(player_info_list, key=lambda p: (p.score, p.tb_score), reverse=True)
                 print(sorted_players_info)
                 selected_players = sorted_players_info[:num]
                 if len(selected_players) == 0:
@@ -751,12 +751,12 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 wins = int(text)
                 threshold_score = wins  # Adjust if you use a different score metric
-                player_info_list = calculate_players_stats(self.players, self.rounds)
+                player_info_list = calculate_players_stats(self.players, self.rounds, self.settings.selected_tiebreaker)
                 selected_players_info = [p for p in player_info_list if p.score >= threshold_score]
                 if len(selected_players_info) < 2:
                     QMessageBox.warning(self, "Invalid Input", "Not enough players have a high enough score.")
                     return
-                sorted_players_info = sorted(selected_players_info, key=lambda p: (p.score, p.resistance), reverse=True)
+                sorted_players_info = sorted(selected_players_info, key=lambda p: (p.score, p.tb_score), reverse=True)
                 round1_matches = create_bracket(sorted_players_info)
                 # TODO: Future work. Create full interactive bracket page
                 # bracket = build_full_bracket_from_first_round(round1_matches)
